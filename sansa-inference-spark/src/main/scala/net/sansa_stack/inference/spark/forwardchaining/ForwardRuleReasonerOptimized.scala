@@ -1,13 +1,14 @@
 package net.sansa_stack.inference.spark.forwardchaining
 
+import scala.language.{existentials, implicitConversions}
+
 import org.apache.jena.reasoner.rulesys.Rule
-import org.apache.spark.sql.{Row, SparkSession}
-import net.sansa_stack.inference.rules.{HighLevelRuleDependencyGraphGenerator, RuleDependencyGraph, RuleDependencyGraphGenerator}
-import net.sansa_stack.inference.spark.data.AbstractRDFGraph
-import net.sansa_stack.inference.spark.rules.RuleExecutor
+import org.apache.spark.sql.SparkSession
 import org.slf4j.LoggerFactory
 
-import scala.language.{existentials, implicitConversions}
+import net.sansa_stack.inference.rules.{HighLevelRuleDependencyGraphGenerator, RuleDependencyGraph, RuleDependencyGraphGenerator}
+import net.sansa_stack.inference.spark.data.model.AbstractRDFGraph
+import net.sansa_stack.inference.spark.rules.RuleExecutor
 
 /**
   * An optimized implementation of the forward chaining based reasoner.
@@ -25,18 +26,18 @@ abstract class ForwardRuleReasonerOptimized[V, G <: AbstractRDFGraph[V, G]]
   var unionCnt = 0
   var distinctCnt = 0
 
-  def reset() = {
+  def reset(): Unit = {
     ruleExecutionCnt = 0
     countCnt = 0
     unionCnt = 0
     distinctCnt = 0
   }
 
-  def showExecutionStats() = {
-    println("#Executed Rules:" + ruleExecutionCnt)
-    println("#Count Request:" + countCnt)
-    println("#Union Request:" + unionCnt)
-    println("#Distinct Request:" + distinctCnt)
+  def showExecutionStats(): Unit = {
+    info("#Executed Rules:" + ruleExecutionCnt)
+    info("#Count Request:" + countCnt)
+    info("#Union Request:" + unionCnt)
+    info("#Distinct Request:" + distinctCnt)
   }
   /**
     * Applies forward chaining to the given RDF graph and returns a new RDF graph that contains all additional
@@ -51,13 +52,13 @@ abstract class ForwardRuleReasonerOptimized[V, G <: AbstractRDFGraph[V, G]]
     var newGraph = graph.cache()
 
     // generate the rule dependency graph
-    val dependencyGraph = RuleDependencyGraphGenerator.generate(rules)
+    val dependencyGraph = RuleDependencyGraphGenerator.generate(rules, pruned = true)
 
     // generate the high-level dependency graph
     val highLevelDependencyGraph = HighLevelRuleDependencyGraphGenerator.generate(dependencyGraph)
 
     // apply topological sort and get the layers
-    val layers = highLevelDependencyGraph.layers()
+    val layers = highLevelDependencyGraph.layers().foldLeft(List[(Int, scala.Iterable[RuleDependencyGraph])]())((b, a) => a :: b)
 
     // each layer contains a set of rule dependency graphs
     // for each layer we process those
@@ -83,12 +84,53 @@ abstract class ForwardRuleReasonerOptimized[V, G <: AbstractRDFGraph[V, G]]
 
     var newGraph = graph
 
-    layer._2.foreach{rdg =>
+    val processedRDGs = layer._2.map{rdg =>
       logger.info("Processing dependency graph " + rdg.printNodes())
-      newGraph = newGraph.union(applyRules(rdg.rules().toSeq, newGraph)).distinct().cache()
-      unionCnt += 1
-      distinctCnt += 1
+      applyRules(rdg, newGraph)
     }
+
+    newGraph = newGraph.unionAll(processedRDGs.toSeq).distinct().cache()
+    unionCnt += 1
+    distinctCnt += 1
+
+    newGraph
+  }
+
+  /**
+    * Apply the set of rules on the given graph by doing fix-point iteration.
+    *
+    * @param rdg the rule dependency graph
+    * @param graph the RDF graph
+    */
+  def applyRules(rdg: RuleDependencyGraph, graph: G): G = {
+    var newGraph = graph.cache()
+
+    val rules = rdg.rules().toSeq
+
+    if(rdg.hasCycle()) {
+      var newGraph = graph.cache()
+      var iteration = 1
+      var oldCount = 0L
+      var nextCount = newGraph.size()
+      logger.info(s"initial size:$nextCount")
+
+      do {
+        logger.info("Iteration " + iteration)
+        iteration += 1
+        oldCount = nextCount
+
+        newGraph = newGraph.union(applyRulesOnce(rules, newGraph)).distinct().cache()
+        unionCnt += 1
+        distinctCnt += 1
+
+        nextCount = newGraph.size()
+        logger.info(s"new size:$nextCount")
+        countCnt += 1
+      } while (nextCount != oldCount)
+    } else {
+      newGraph = newGraph.union(applyRulesOnce(rules, newGraph))
+    }
+
     newGraph
   }
 
@@ -102,7 +144,7 @@ abstract class ForwardRuleReasonerOptimized[V, G <: AbstractRDFGraph[V, G]]
     var newGraph = graph.cache()
     var iteration = 1
     var oldCount = 0L
-    var nextCount = newGraph.size
+    var nextCount = newGraph.size()
     logger.info(s"initial size:$nextCount")
     do {
       logger.info("Iteration " + iteration)

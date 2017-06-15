@@ -1,16 +1,16 @@
 package net.sansa_stack.inference.spark
 
-import net.sansa_stack.inference.spark.data.{RDFGraphDataFrame, RDFGraphNative}
-import net.sansa_stack.inference.spark.forwardchaining.ForwardRuleReasonerOptimizedSQL
-import org.apache.jena.vocabulary.{OWL2, RDF, RDFS}
+import scala.collection.mutable
+
+import org.apache.jena.vocabulary.RDFS
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
+
 import net.sansa_stack.inference.data.RDFTriple
 import net.sansa_stack.inference.rules.RuleSets
-import net.sansa_stack.inference.spark.data.{RDFGraphLoader, RDFGraphNative, RDFGraphWriter}
+import net.sansa_stack.inference.spark.data.loader.RDFGraphLoader
+import net.sansa_stack.inference.spark.data.model.{RDFGraphDataFrame, RDFGraphNative}
 import net.sansa_stack.inference.spark.forwardchaining.{ForwardRuleReasonerOptimizedNative, ForwardRuleReasonerOptimizedSQL}
-
-import scala.collection.mutable
 
 /**
   * @author Lorenz Buehmann
@@ -47,7 +47,7 @@ object GenericDataframeVsGenericNativeExperiments {
     session = sessionBuilder.appName("generic-rdd").getOrCreate()
 
     // load triples from disk
-    var graph = RDFGraphLoader.loadGraphFromFile(args(0), session, 4)//generateData(1)
+    var graph = RDFGraphLoader.loadFromDiskAsRDD(session, args(0), 4)//generateData(1)
 
     val infGraphNative = native(graph)
 
@@ -57,7 +57,7 @@ object GenericDataframeVsGenericNativeExperiments {
 
     session = sessionBuilder.appName("generic-dataframe").getOrCreate()
 
-    graph = RDFGraphLoader.loadGraphFromFile(args(0), session, 4)
+    graph = RDFGraphLoader.loadFromDiskAsRDD(session, args(0), 4)
 
     val infGraphDataframe = dataframe(new RDFGraphDataFrame(graph.toDataFrame(session)))
 

@@ -1,9 +1,10 @@
-package net.sansa_stack.inference.spark.data
+package net.sansa_stack.inference.spark.data.model
 
 import org.apache.jena.graph.Triple
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
-import org.apache.spark.sql.{DataFrame, Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, Row, SQLContext}
+
 import net.sansa_stack.inference.data.RDFTriple
 
 /**
@@ -12,7 +13,7 @@ import net.sansa_stack.inference.data.RDFTriple
   * @author Lorenz Buehmann
   *
   */
-class RDFGraphNative(val triples: RDD[RDFTriple]) extends AbstractRDFGraph[RDD[RDFTriple], RDFGraphNative](triples){
+case class RDFGraph (triples: RDD[RDFTriple]) {
 
   /**
     * Returns an RDD of triples that match with the given input.
@@ -22,11 +23,11 @@ class RDFGraphNative(val triples: RDD[RDFTriple]) extends AbstractRDFGraph[RDD[R
     * @param o the object
     * @return RDD of triples
     */
-  def find (s: Option[String] = None, p: Option[String] = None, o: Option[String] = None): RDD[RDFTriple]= {
+  def find(s: Option[String] = None, p: Option[String] = None, o: Option[String] = None): RDD[RDFTriple] = {
       triples.filter(t =>
-          (s == None || t.subject == s.get) &&
-          (p == None || t.predicate == p.get) &&
-          (o == None || t.`object` == o.get)
+          (s == None || t.s == s.get) &&
+          (p == None || t.p == p.get) &&
+          (o == None || t.o == o.get)
       )
   }
 
@@ -43,31 +44,32 @@ class RDFGraphNative(val triples: RDD[RDFTriple]) extends AbstractRDFGraph[RDD[R
     )
   }
 
-  def union(graph: RDFGraphNative): RDFGraphNative = {
-    new RDFGraphNative(triples.union(graph.toRDD()))
+  /**
+    * Return the union of the current RDF graph with the given RDF graph
+    * @param graph the other RDF graph
+    * @return the union of both graphs
+    */
+  def union(graph: RDFGraph): RDFGraph = {
+    RDFGraph(triples.union(graph.triples))
   }
 
-  def cache(): this.type = {
+  /**
+    * Persist the triples RDD with the default storage level (`MEMORY_ONLY`).
+    */
+  def cache(): RDFGraph = {
     triples.cache()
     this
   }
 
-  def distinct() = {
-    new RDFGraphNative(triples.distinct())
-  }
-
   /**
     * Return the number of triples.
- *
     * @return the number of triples
     */
-  def size() = {
+  def size(): Long = {
     triples.count()
   }
 
-  def toRDD() = triples
-
-  def toDataFrame(sparkSession: SparkSession): DataFrame = {
+  def toDataFrame(sqlContext: SQLContext): DataFrame = {
     // convert RDD to DataFrame
     val schemaString = "subject predicate object"
 
@@ -75,22 +77,14 @@ class RDFGraphNative(val triples: RDD[RDFTriple]) extends AbstractRDFGraph[RDD[R
     val schema = StructType(schemaString.split(" ").map(fieldName => StructField(fieldName, StringType, true)))
 
     // convert triples RDD to rows
-    val rowRDD = triples.map(t => Row(t.subject, t.predicate, t.`object`))
+    val rowRDD = triples.map(t => Row(t.s, t.p, t.o))
 
     // apply the schema to the RDD
-    val triplesDataFrame = sparkSession.createDataFrame(rowRDD, schema)
+    val triplesDataFrame = sqlContext.createDataFrame(rowRDD, schema)
 
     // register the DataFrame as a table
     triplesDataFrame.createOrReplaceTempView("TRIPLES")
 
     triplesDataFrame
-  }
-
-  def unionAll(graphs: Seq[RDFGraphNative]): RDFGraphNative = {
-    //    return graphs.reduceLeft(_ union _)
-    val first = graphs(0)
-    return new RDFGraphNative(
-      first.triples.sparkContext.union(graphs.map(g => g.toRDD()))
-    )
   }
 }

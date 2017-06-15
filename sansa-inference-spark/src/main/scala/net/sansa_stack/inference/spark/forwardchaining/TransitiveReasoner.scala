@@ -1,25 +1,63 @@
 package net.sansa_stack.inference.spark.forwardchaining
 
-import net.sansa_stack.inference.data.RDFTriple
-import net.sansa_stack.inference.utils.Profiler
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.DataFrame
-
 import scala.collection.mutable
 import scala.reflect.ClassTag
+
+import org.apache.spark.SparkContext
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.{DataFrame, Dataset}
+
+import net.sansa_stack.inference.data.RDFTriple
+import net.sansa_stack.inference.spark.data.model.RDFGraph
 
 /**
   * An engine to compute the transitive closure (TC) for a set of triples given in several datastructures.
   *
   * @author Lorenz Buehmann
   */
-trait TransitiveReasoner extends Profiler{
+class TransitiveReasoner(sc: SparkContext, val properties: Seq[String], val parallelism: Int)
+  extends ForwardRuleReasoner {
 
-  //  def computeTransitiveClosure[A, B, C](s: mutable.Set[(A, B, C)]): mutable.Set[(A, B, C)] = {
-  //    val t = addTransitive(s)
-  //    // recursive call if set changed, otherwise stop and return
-  //    if (t.size == s.size) s else computeTransitiveClosure(t)
-  //  }
+  def this(sc: SparkContext, property: String, parallelism: Int) {
+    this(sc, Seq(property), parallelism)
+  }
+
+  def this(sc: SparkContext, parallelism: Int) {
+    this(sc, Seq(), parallelism)
+  }
+
+  /**
+    * Applies forward chaining to the given RDF graph and returns a new RDF graph that contains all additional
+    * triples based on the underlying set of rules.
+    *
+    * @param graph the RDF graph
+    * @return the materialized RDF graph
+    */
+  override def apply(graph: RDFGraph): RDFGraph = {
+    if (properties.isEmpty) {
+      throw new RuntimeException("A list of properties has to be given for the transitive reasoner!")
+    }
+
+    graph.triples.cache()
+
+    // compute TC for each given property
+    val tcRDDs = properties.map(p => computeTransitiveClosure(graph.triples.filter(t => t.p == p), p))
+
+    // compute the union of all
+    val triples = sc.union(tcRDDs :+ graph.triples)
+
+    RDFGraph(triples)
+  }
+
+  def computeTransitiveClosurePairs[A, B](s: Set[(A, B)]): Set[(A, B)] = {
+    val t = addTransitivePairs(s)
+    // recursive call if set changed, otherwise stop and return
+    if (t.size == s.size) s else computeTransitiveClosurePairs(t)
+  }
+
+  def addTransitivePairs[A, B](s: Set[(A, B)]): Set[(A, B)] = {
+    s ++ (for ((x1, y1) <- s; (x2, y2) <- s if y1 == x2) yield (x1, y2))
+  }
 
   /**
     * Computes the transitive closure on a set of triples, i.e. it is computed in-memory by the driver.
@@ -39,7 +77,9 @@ trait TransitiveReasoner extends Profiler{
   //  }
 
   private def addTransitive(triples: Set[RDFTriple]): Set[RDFTriple] = {
-    triples ++ (for (t1 <- triples; t2 <- triples if t1.`object` == t2.subject) yield RDFTriple(t1.subject, t1.predicate, t2.`object`))
+    triples ++ (
+      for (t1 <- triples; t2 <- triples if t1.o == t2.s)
+      yield RDFTriple(t1.s, t1.p, t2.o))
   }
 
   /**
@@ -53,7 +93,7 @@ trait TransitiveReasoner extends Profiler{
     if (triples.isEmpty()) return triples
 
     // get the predicate
-    val predicate = triples.take(1)(0).predicate
+    val predicate = triples.take(1)(0).p
 
     // compute TC
     computeTransitiveClosure(triples, predicate)
@@ -67,36 +107,16 @@ trait TransitiveReasoner extends Profiler{
     * @return an RDD containing the transitive closure of the triples
     */
   def computeTransitiveClosure(triples: RDD[RDFTriple], predicate: String): RDD[RDFTriple] = {
-    if(triples.isEmpty()) return triples
+    if (triples.isEmpty()) return triples
     log.info(s"computing TC for property $predicate...")
 
     profile {
-      // compute the TC
-      var subjectObjectPairs = triples.map(t => (t.subject, t.`object`)).cache()
+      // we only need (s, o)
+      val subjectObjectPairs = triples.map(t => (t.s, t.o)).cache()
 
-      // because join() joins on keys, in addition the pairs are stored in reversed order (o, s)
-      val objectSubjectPairs = subjectObjectPairs.map(t => (t._2, t._1))
+      val tc = computeTransitiveClosure(subjectObjectPairs)
 
-      // the join is iterated until a fixed point is reached
-      var i = 1
-      var oldCount = 0L
-      var nextCount = triples.count()
-      do {
-        log.info(s"iteration $i...")
-        oldCount = nextCount
-        // perform the join (s1, o1) x (o2, s2), obtaining an RDD of (s1=o2, (o1, s2)) pairs,
-        // then project the result to obtain the new (s2, o1) paths.
-        subjectObjectPairs = subjectObjectPairs
-          .union(subjectObjectPairs.join(objectSubjectPairs).map(x => (x._2._2, x._2._1)))
-          .filter(tuple => tuple._1 != tuple._2) // omit (s1, s1)
-          .distinct()
-          .cache()
-        nextCount = subjectObjectPairs.count()
-        i += 1
-      } while (nextCount != oldCount)
-
-      log.info(s"TC for $predicate has " + nextCount + " triples.")
-      subjectObjectPairs.map(p => new RDFTriple(p._1, predicate, p._2))
+      tc.map(p => new RDFTriple(p._1, predicate, p._2))
     }
   }
 
@@ -106,7 +126,7 @@ trait TransitiveReasoner extends Profiler{
     * @param edges the RDD of tuples
     * @return an RDD containing the transitive closure of the tuples
     */
-  def computeTransitiveClosure[A:ClassTag](edges: RDD[(A, A)]): RDD[(A, A)] = {
+  def computeTransitiveClosure[A: ClassTag](edges: RDD[(A, A)]): RDD[(A, A)] = {
     log.info("computing TC...")
     // we keep the transitive closure cached
     var tc = edges
@@ -114,6 +134,13 @@ trait TransitiveReasoner extends Profiler{
 
     // because join() joins on keys, in addition the pairs are stored in reversed order (o, s)
     val edgesReversed = tc.map(t => (t._2, t._1))
+    edgesReversed.cache()
+
+    def f(rdd: RDD[(A, A)]): RDD[(A, A)] = {
+      rdd.join(edgesReversed).map(x => (x._2._2, x._2._1))
+    }
+
+//    tc = FixpointIteration(10)(tc, f)
 
     // the join is iterated until a fixed point is reached
     var i = 1
@@ -126,13 +153,60 @@ trait TransitiveReasoner extends Profiler{
       // then project the result to obtain the new (x, y) paths.
       tc = tc
         .union(tc.join(edgesReversed).map(x => (x._2._2, x._2._1)))
-        .distinct()
+        .distinct(parallelism)
         .cache()
       nextCount = tc.count()
       i += 1
     } while (nextCount != oldCount)
 
-    println("TC has " + nextCount + " edges.")
+    log.info("TC has " + nextCount + " edges.")
+    tc
+  }
+
+  /**
+    * Semi-naive computation of the transitive closure `T` for an RDD of tuples `R=(x,y)`.
+    *
+    * {{{
+    * (1) T = R
+    * (2) ∆T = R
+    * (3) while ∆T != ∅ do
+    * (4) ∆T = ∆T ◦ R − T
+    * (5) T = T ∪ ∆T
+    * (6) end
+    * }}}
+    *
+    * @param edges the RDD of tuples `(x,y)`
+    * @return an RDD containing the transitive closure of the tuples
+    */
+  def computeTransitiveClosureSemiNaive[A: ClassTag](edges: RDD[(A, A)]): RDD[(A, A)] = {
+    log.info("computing TC...")
+    // we keep the transitive closure cached
+    var tc = edges
+    tc.cache()
+
+    // because join() joins on keys, in addition the pairs are stored in reversed order (o, s)
+    val edgesReversed = tc.map(t => (t._2, t._1)).cache()
+
+    var deltaTC = tc.repartition(4)
+
+    // the join is iterated until a fixed point is reached
+    var i = 1
+    while(!deltaTC.isEmpty()) {
+      log.info(s"iteration $i...")
+
+      // perform the join (x, y) x (y, x), obtaining an RDD of (x=y, (y, x)) pairs,
+      // then project the result to obtain the new (x, y) paths.
+      deltaTC = deltaTC.join(edgesReversed)
+                        .map(x => (x._2._2, x._2._1))
+                        .subtract(tc).distinct().cache()
+
+      // add to TC
+      tc = tc.union(deltaTC).cache()
+
+      i += 1
+    }
+
+    log.info("TC has " + tc.count() + " edges.")
     tc
   }
 
@@ -142,8 +216,11 @@ trait TransitiveReasoner extends Profiler{
     * @param edges the Dataframe of triples
     * @return a Dataframe containing the transitive closure of the triples
     */
-  def computeTransitiveClosure[A:ClassTag](edges: DataFrame): DataFrame = {
+  def computeTransitiveClosure(edges: Dataset[RDFTriple]): Dataset[RDFTriple] = {
     log.info("computing TC...")
+//    implicit val myObjEncoder = org.apache.spark.sql.Encoders.kryo[RDFTriple]
+    val spark = edges.sparkSession.sqlContext
+    import spark.implicits._
 
     profile {
       // we keep the transitive closure cached
@@ -164,7 +241,13 @@ trait TransitiveReasoner extends Profiler{
         // then project the result to obtain the new (x, y) paths.
 
         tc.createOrReplaceTempView("SC")
-        var joined = tc.sqlContext.sql("SELECT A.subject, A.predicate, B.object FROM SC A INNER JOIN SC B ON A.object = B.subject")
+        var joined = tc.as("A").join(tc.as("B"), $"A.o" === $"B.s").select("A.s", "A.p", "B.o").as[RDFTriple]
+//          var joined = tc
+//            .join(edges, tc("o") === edges("s"))
+//            .select(tc("s"), tc("p"), edges("o"))
+//            .as[RDFTriple]
+//        tc.sqlContext.
+//          sql("SELECT A.subject, A.predicate, B.object FROM SC A INNER JOIN SC B ON A.object = B.subject")
 
         //      joined.explain()
         //      var joined = df1.join(df2, df1("object") === df2("subject"), "inner")
@@ -185,5 +268,4 @@ trait TransitiveReasoner extends Profiler{
       tc
     }
   }
-
 }

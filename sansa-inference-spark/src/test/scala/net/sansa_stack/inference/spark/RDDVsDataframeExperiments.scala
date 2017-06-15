@@ -1,10 +1,11 @@
 package net.sansa_stack.inference.spark
 
-import net.sansa_stack.inference.spark.data.RDFGraphDataFrame
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
+
 import net.sansa_stack.inference.data.RDFTriple
-import net.sansa_stack.inference.spark.data.{RDFGraph, RDFGraphLoader, RDFGraphWriter}
+import net.sansa_stack.inference.spark.data.loader.RDFGraphLoader
+import net.sansa_stack.inference.spark.data.model.{RDFGraph, RDFGraphDataFrame}
 import net.sansa_stack.inference.spark.forwardchaining.{ForwardRuleReasonerOptimizedSQL, ForwardRuleReasonerRDFS, ForwardRuleReasonerRDFSDataframe}
 import net.sansa_stack.inference.utils.{Profiler, RuleUtils}
 
@@ -61,7 +62,7 @@ object RDDVsDataframeExperiments extends Profiler{
 
   def computeRDD(sourcePath: String): RDFGraph = {
     // load triples from disk
-    val graph = RDFGraphLoader.loadFromFile(sourcePath, session.sparkContext, 4)
+    val graph = RDFGraphLoader.loadFromDisk(session, sourcePath, 4)
 
     // create reasoner
     val reasoner = new ForwardRuleReasonerRDFS(session.sparkContext)
@@ -74,7 +75,7 @@ object RDDVsDataframeExperiments extends Profiler{
 
   def computeDataframe(sourcePath: String): RDFGraphDataFrame = {
     // load triples from disk
-    val graph = RDFGraphLoader.loadGraphDataFrameFromFile(sourcePath, session, 4)
+    val graph = RDFGraphLoader.loadFromDiskAsDataFrame(session, sourcePath, 4)
 
     // create reasoner
     val reasoner = new ForwardRuleReasonerRDFSDataframe(session)

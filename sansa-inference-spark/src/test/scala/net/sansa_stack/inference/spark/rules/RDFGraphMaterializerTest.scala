@@ -2,11 +2,13 @@ package net.sansa_stack.inference.spark.rules
 
 import org.apache.jena.rdf.model.ModelFactory
 import org.apache.spark.{SparkConf, SparkContext}
-import net.sansa_stack.inference.data.RDFTriple
-import net.sansa_stack.inference.spark.data.{RDFGraph, RDFGraphWriter}
-import net.sansa_stack.inference.spark.forwardchaining.ForwardRuleReasonerRDFS
 
+import net.sansa_stack.inference.data.RDFTriple
+import net.sansa_stack.inference.spark.forwardchaining.ForwardRuleReasonerRDFS
 import scala.collection.mutable
+
+import net.sansa_stack.inference.spark.data.model.RDFGraph
+import net.sansa_stack.inference.spark.data.writer.RDFGraphWriter
 
 /**
   * The class to compute the materialization of a given RDF graph.
@@ -46,7 +48,7 @@ object RDFGraphMaterializerTest {
     val inferredGraph = reasoner.apply(graph)
 
     // write triples to disk
-    RDFGraphWriter.writeGraphToFile(inferredGraph, args(0))
+    RDFGraphWriter.writeToDisk(inferredGraph, args(0))
 
     sc.stop()
 

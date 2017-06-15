@@ -1,13 +1,23 @@
 package net.sansa_stack.inference.flink
 
-import java.io.File
+import java.io.{File, FileInputStream}
+import java.net.URI
+import java.util.Properties
 
-import net.sansa_stack.inference.flink.data.{RDFGraphLoader, RDFGraphWriter}
-import net.sansa_stack.inference.flink.forwardchaining.{ForwardRuleReasonerOWLHorst, ForwardRuleReasonerRDFS}
-import net.sansa_stack.inference.rules.ReasoningProfile._
-import net.sansa_stack.inference.rules.{RDFSLevel, ReasoningProfile}
+import scala.io.Source
+
+import com.typesafe.config.ConfigFactory
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala.ExecutionEnvironment
+import org.apache.flink.runtime.webmonitor.WebMonitorUtils
+
+import net.sansa_stack.inference.flink.data.{RDFGraphLoader, RDFGraphWriter}
+import net.sansa_stack.inference.flink.forwardchaining.{
+  ForwardRuleReasonerOWLHorst,
+  ForwardRuleReasonerRDFS
+}
+import net.sansa_stack.inference.rules.ReasoningProfile._
+import net.sansa_stack.inference.rules.{RDFSLevel, ReasoningProfile}
 
 /**
   * The class to compute the RDFS materialization of a given RDF graph.
@@ -20,13 +30,31 @@ object RDFGraphMaterializer {
   def main(args: Array[String]) {
     parser.parse(args, Config()) match {
       case Some(config) =>
-        run(args, config.in, config.out, config.profile, config.writeToSingleFile, config.sortedOutput)
+        run(args,
+            config.in,
+            config.out,
+            config.profile,
+            config.writeToSingleFile,
+            config.sortedOutput,
+            config.propertiesFile,
+            config.jobName)
       case None =>
         println(parser.usage)
     }
   }
 
-  def run(args: Array[String], input: File, output: File, profile: ReasoningProfile, writeToSingleFile: Boolean, sortedOutput: Boolean): Unit = {
+  def run(args: Array[String],
+          input: Seq[URI],
+          output: URI,
+          profile: ReasoningProfile,
+          writeToSingleFile: Boolean,
+          sortedOutput: Boolean,
+          propertiesFile: File,
+          jobName: String): Unit = {
+
+    // read reasoner optimization properties
+    val reasonerConf = if (propertiesFile != null) ConfigFactory.parseFile(propertiesFile) else ConfigFactory.load("reasoner")
+
     // get params
     val params: ParameterTool = ParameterTool.fromArgs(args)
 
@@ -39,39 +67,46 @@ object RDFGraphMaterializer {
 
     // load triples from disk
     val graph = RDFGraphLoader.loadFromDisk(input, env)
-    println(s"|G| = ${graph.size()}")
+//    println(s"|G| = ${graph.size()}")
 
     // create reasoner
     val reasoner = profile match {
-      case RDFS => new ForwardRuleReasonerRDFS(env)
-      case RDFS_SIMPLE => {
+      case RDFS | RDFS_SIMPLE =>
         val r = new ForwardRuleReasonerRDFS(env)
-        r.level = RDFSLevel.SIMPLE
+        r.useSchemaBroadCasting = reasonerConf.getBoolean("reasoner.rdfs.schema.broadcast")
+        r.extractSchemaTriplesInAdvance = reasonerConf.getBoolean("reasoner.rdfs.schema.extractTriplesInAdvance")
+        if (profile == RDFS_SIMPLE) r.level = RDFSLevel.SIMPLE
         r
-      }
       case OWL_HORST => new ForwardRuleReasonerOWLHorst(env)
     }
 
     // compute inferred graph
     val inferredGraph = reasoner.apply(graph)
-    println(s"|G_inf| = ${inferredGraph.size()}")
+//    println(s"|G_inf| = ${inferredGraph.size()}")
 
     // write triples to disk
-    RDFGraphWriter.writeToDisk(inferredGraph, output, writeToSingleFile, sortedOutput)
+    RDFGraphWriter.writeToDisk(inferredGraph,
+                               output,
+                               writeToSingleFile,
+                               sortedOutput)
 
-//    println(env.getExecutionPlan())
+    //    println(env.getExecutionPlan())
+
+    val jn = if (jobName.isEmpty) s"${profile} Reasoning" else jobName
 
     // run the program
-    env.execute(s"RDF ${profile} Reasoning")
+    env.execute(jn)
   }
 
   // the config object
   case class Config(
-                     in: File = new File("."),
-                     out: File = new File("."),
-                     profile: ReasoningProfile = ReasoningProfile.RDFS,
-                     writeToSingleFile: Boolean = false,
-                     sortedOutput: Boolean = false)
+      in: Seq[URI] = Seq(),
+      out: URI = new URI("."),
+      profile: ReasoningProfile = ReasoningProfile.RDFS,
+      writeToSingleFile: Boolean = false,
+      sortedOutput: Boolean = false,
+      propertiesFile: File = null,
+      jobName: String = "") // new File(getClass.getResource("reasoner.properties").toURI)
 
   // read ReasoningProfile enum
   implicit val profilesRead: scopt.Read[ReasoningProfile.Value] =
@@ -84,25 +119,49 @@ object RDFGraphMaterializer {
 //    opt[Seq[File]]('i', "input").required().valueName("<path1>,<path2>,...").
 //      action((x, c) => c.copy(in = x)).
 //      text("path to file or directory that contains the input files (in N-Triple format)")
-    opt[File]('i', "input").required().valueName("<path>").
-      action((x, c) => c.copy(in = x)).
-      text("path to file or directory that contains the input files (in N-Triple format)")
+    opt[Seq[URI]]('i', "input")
+      .required()
+      .valueName("<path>")
+      .action((x, c) => c.copy(in = x))
+      .text("path to file or directory that contains the input files (in N-Triple format)")
 
-    opt[File]('o', "out").required().valueName("<directory>").
-      action((x, c) => c.copy(out = x)).
-      text("the output directory")
+    opt[URI]('o', "out")
+      .required()
+      .valueName("<directory>")
+      .action((x, c) => c.copy(out = x))
+      .text("the output directory")
 
-    opt[Unit]("single-file").optional().action( (_, c) =>
-      c.copy(writeToSingleFile = true)).text("write the output to a single file in the output directory")
+    opt[Unit]("single-file")
+      .optional()
+      .action((_, c) => c.copy(writeToSingleFile = true))
+      .text("write the output to a single file in the output directory")
 
-    opt[Unit]("sorted").optional().action( (_, c) =>
-      c.copy(sortedOutput = true)).text("sorted output of the triples (per file)")
+    opt[Unit]("sorted")
+      .optional()
+      .action((_, c) => c.copy(sortedOutput = true))
+      .text("sorted output of the triples (per file)")
 
-    opt[ReasoningProfile]('p', "profile").required().valueName("{rdfs | rdfs-simple | owl-horst}").
-      action((x, c) => c.copy(profile = x)).
-      text("the reasoning profile")
+    opt[ReasoningProfile]('p', "profile")
+      .required()
+      .valueName("{rdfs | rdfs-simple | owl-horst}")
+      .action((x, c) => c.copy(profile = x))
+      .text("the reasoning profile")
+
+    opt[File]('p', "prop")
+      .optional()
+      .valueName("<path_to_properties_file>")
+      .action((x, c) => c.copy(propertiesFile = x))
+      .text("the (optional) properties file which allows some more advanced options")
+
+    opt[String]('j', "jobName")
+      .optional()
+      .valueName("<name_of_the_Flink_job>")
+      .action((x, c) => c.copy(jobName = x))
+      .text("the name of the Flink job that occurs also in the Web-UI")
 
     help("help").text("prints this usage text")
+
   }
+  parser.showUsageOnError
 
 }

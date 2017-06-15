@@ -1,14 +1,16 @@
 package net.sansa_stack.inference.utils
 
+import net.sansa_stack.inference.rules.RuleEntailmentType
+import net.sansa_stack.inference.rules.RuleEntailmentType._
+import net.sansa_stack.inference.utils.graph.LabeledEdge
 import org.apache.jena.graph.Node
 import org.apache.jena.reasoner.TriplePattern
 import org.apache.jena.reasoner.rulesys.Rule
-import net.sansa_stack.inference.rules.RuleEntailmentType
-import net.sansa_stack.inference.rules.RuleEntailmentType._
+import org.jgrapht.alg.cycle.TarjanSimpleCycles
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scalax.collection.edge.Implicits._
-import scalax.collection.edge.{LDiEdge, LkDiEdge}
+import scalax.collection.edge.LDiEdge
 import scalax.collection.mutable.Graph
 
 /**
@@ -34,9 +36,11 @@ object RuleUtils {
 
     // check whether there are only terminological triples in head
     rule.getHead
-      .collect{case b:TriplePattern => b}
+      .collect { case b: TriplePattern => b }
       .foreach(
-        tp => if(!TripleUtils.isTerminological(tp.asTriple())) {ret = false}
+        tp => if (!TripleUtils.isTerminological(tp.asTriple())) {
+          ret = false
+        }
       )
     ret
   }
@@ -56,16 +60,20 @@ object RuleUtils {
 
     // check whether there are only assertional triples in body
     rule.getBody
-      .collect{case b:TriplePattern => b}
+      .collect { case b: TriplePattern => b }
       .foreach(
-        tp => if(!TripleUtils.isAssertional(tp.asTriple())) {ret = false}
+        tp => if (!TripleUtils.isAssertional(tp.asTriple())) {
+          ret = false
+        }
       )
 
     // check whether there are only assertional triples in head
     rule.getHead
-      .collect{case b:TriplePattern => b}
+      .collect { case b: TriplePattern => b }
       .foreach(
-        tp => if(!TripleUtils.isAssertional(tp.asTriple())) {ret = false}
+        tp => if (!TripleUtils.isAssertional(tp.asTriple())) {
+          ret = false
+        }
       )
     ret
   }
@@ -84,17 +92,21 @@ object RuleUtils {
     // check for assertional triple in body
     var assertional = false
     rule.getBody
-      .collect{case b:TriplePattern => b}
+      .collect { case b: TriplePattern => b }
       .foreach(
-        tp => if(TripleUtils.isAssertional(tp.asTriple())) {assertional = true}
+        tp => if (TripleUtils.isAssertional(tp.asTriple())) {
+          assertional = true
+        }
       )
 
     // check for terminological triple in body
     var terminological = false
     rule.getBody
-      .collect{case b:TriplePattern => b}
+      .collect { case b: TriplePattern => b }
       .foreach(
-        tp => if(TripleUtils.isTerminological(tp.asTriple())) {terminological = true}
+        tp => if (TripleUtils.isTerminological(tp.asTriple())) {
+          terminological = true
+        }
       )
 
     val hybridBody = assertional && terminological
@@ -107,9 +119,11 @@ object RuleUtils {
     // check if there are only assertional triples in head
     var assertionalHead = true
     rule.getHead
-      .collect{case b:TriplePattern => b}
+      .collect { case b: TriplePattern => b }
       .foreach(
-        tp => if(!TripleUtils.isAssertional(tp.asTriple())) {assertionalHead = false}
+        tp => if (!TripleUtils.isAssertional(tp.asTriple())) {
+          assertionalHead = false
+        }
       )
 
     assertionalHead
@@ -120,15 +134,16 @@ object RuleUtils {
     * @param rule the rule to analyze
     * @return the entailment type
     */
-  def entailmentType(rule: Rule) : RuleEntailmentType = {
-    if(isAssertional(rule))
+  def entailmentType(rule: Rule): RuleEntailmentType = {
+    if (isAssertional(rule)) {
       RuleEntailmentType.ASSERTIONAL
-    else if(isTerminological(rule))
+    } else if (isTerminological(rule)) {
       RuleEntailmentType.TERMINOLOGICAL
-    else if(isHybrid(rule))
+    } else if (isHybrid(rule)) {
       RuleEntailmentType.HYBRID
-    else
+    } else {
       None.get
+    }
   }
 
   /**
@@ -259,6 +274,17 @@ object RuleUtils {
     * @return whether it's cyclic or not
     */
   def isCyclic(rule: Rule) : Boolean = {
+    val body = rule.bodyTriplePatterns()
+    val head = rule.headTriplePatterns()
+
+    // sanity check that there is only a single head TP
+    if(head.size > 1) {
+      throw new IllegalArgumentException("Rules with more than one triple pattern in the head are not supported yet!")
+    }
+
+    // if there is only a single body TP, we can terminate here and return FALSE
+    if(body.size == 1) return false
+
     // get the type of the rule
     val ruleType = entailmentType(rule)
 
@@ -304,6 +330,25 @@ object RuleUtils {
         bodyPredicates.intersect(headPredicates).nonEmpty
 
     }
+
+    // we generate a graph for the rule (we use a JGraphT graph which provides better cycle detection)
+    val g = GraphUtils.asJGraphtRuleGraph(asGraph(rule))
+
+    // get cycles of length > 2
+    val cycleDetector = new TarjanSimpleCycles[Node, LabeledEdge[Node, String]](g)
+    val cycles = cycleDetector.findSimpleCycles().asScala.filter(c => c.size() > 2)
+
+    // we can terminate if there are no cycles with length > 2
+    if(cycles.isEmpty) return false
+
+    // we have to check for cycles that share the same predicate with the head
+
+    cycles.foreach(c => {
+      val nodes = c.asScala.toList
+      val pairs = nodes zip nodes.tail
+    })
+
+    true
   }
 
   /**
@@ -312,7 +357,7 @@ object RuleUtils {
     * @return a set of rules
     */
   def load(filename: String): Seq[Rule] = {
-    Rule.parseRules(org.apache.jena.reasoner.rulesys.Util.loadRuleParserFromResourceFile(filename)).toSeq
+    Rule.parseRules(org.apache.jena.reasoner.rulesys.Util.loadRuleParserFromResourceFile(filename)).asScala.toSeq
   }
 
   /**
@@ -336,7 +381,7 @@ object RuleUtils {
     * @return the variables
     */
   def varsOfBody(rule: Rule): Set[Node] = {
-    (for(tp <- rule.bodyTriplePatterns()) yield varsOf(tp)).flatten.toSet
+    (for (tp <- rule.bodyTriplePatterns()) yield varsOf(tp)).flatten.toSet
   }
 
   /**
@@ -346,7 +391,7 @@ object RuleUtils {
     * @return the variables
     */
   def varsOfHead(rule: Rule): Set[Node] = {
-    (for(tp <- rule.bodyTriplePatterns()) yield varsOf(tp)).flatten.toSet
+    (for (tp <- rule.bodyTriplePatterns()) yield varsOf(tp)).flatten.toSet
   }
 
   /**
@@ -362,23 +407,23 @@ object RuleUtils {
   def varsOf(tp: org.apache.jena.graph.Triple): List[Node] = {
     var vars = List[Node]()
 
-    if(tp.getSubject.isVariable) {
-      vars  = vars :+ tp.getSubject
+    if (tp.getSubject.isVariable) {
+      vars = vars :+ tp.getSubject
     }
 
-    if(tp.getPredicate.isVariable) {
-      vars  = vars :+ tp.getPredicate
+    if (tp.getPredicate.isVariable) {
+      vars = vars :+ tp.getPredicate
     }
 
-    if(tp.getObject.isVariable) {
-      vars  = vars :+ tp.getObject
+    if (tp.getObject.isVariable) {
+      vars = vars :+ tp.getObject
     }
 
     vars
   }
 
   /**
-    * Returns `true` if `rule1 has the same body as `rule2`, otherwise `false`.
+    * Returns `true` if `rule1 has the same body as `rule2`, otherwise `false` .
     */
   def sameBody(rule1: Rule, rule2: Rule): Boolean = {
     GraphUtils.areIsomorphic(graphOfBody(rule1), graphOfBody(rule2))
@@ -435,12 +480,14 @@ object RuleUtils {
   }
 
   implicit class TriplePatternEqualiltyExtension(val tp: TriplePattern) {
-    def ==(that: TriplePatternEqualiltyExtension) = that.tp.asTriple().equals(this.tp.asTriple())
+    def ==(that: TriplePatternEqualiltyExtension): Boolean = that.tp.asTriple().equals(this.tp.asTriple())
 
-    override def equals(that: Any) = that match {
+    override def equals(that: Any): Boolean = that match {
       case t: TriplePatternEqualiltyExtension => t.tp.asTriple().equals(this.tp.asTriple())
       case _ => false
     }
+
+    override def hashCode(): Int = tp.hashCode()
   }
 
 

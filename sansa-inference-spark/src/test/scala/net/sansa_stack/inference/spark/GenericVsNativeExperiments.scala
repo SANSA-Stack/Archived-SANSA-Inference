@@ -1,11 +1,13 @@
 package net.sansa_stack.inference.spark
 
-import net.sansa_stack.inference.spark.data.RDFGraphDataFrame
 import net.sansa_stack.inference.spark.forwardchaining.ForwardRuleReasonerOptimizedSQL
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
+
 import net.sansa_stack.inference.data.RDFTriple
-import net.sansa_stack.inference.spark.data.{RDFGraphLoader, RDFGraphWriter}
+import net.sansa_stack.inference.spark.data.loader.RDFGraphLoader
+import net.sansa_stack.inference.spark.data.model.RDFGraphDataFrame
+import net.sansa_stack.inference.spark.data.writer.RDFGraphWriter
 import net.sansa_stack.inference.spark.forwardchaining.{ForwardRuleReasonerOptimizedSQL, ForwardRuleReasonerRDFSDataframe}
 import net.sansa_stack.inference.utils.RuleUtils
 
@@ -36,7 +38,7 @@ object GenericVsNativeExperiments {
     }
 
     // load triples from disk
-    val graph = RDFGraphLoader.loadGraphDataFrameFromFile(args(0), session, 4)
+    val graph = RDFGraphLoader.loadFromDiskAsDataFrame(session, args(0), 4)
 
     val infGraphNative = native(graph)
 
@@ -48,8 +50,8 @@ object GenericVsNativeExperiments {
     val targetDir = args(1)
 
     // write triples to disk
-    RDFGraphWriter.writeDataframeToFile(infGraphNative.toDataFrame(), targetDir + "/native")
-    RDFGraphWriter.writeDataframeToFile(infGraphGeneric.toDataFrame(), targetDir + "/generic")
+    RDFGraphWriter.writeDataframeToDisk(infGraphNative.toDataFrame(), targetDir + "/native")
+    RDFGraphWriter.writeDataframeToDisk(infGraphGeneric.toDataFrame(), targetDir + "/generic")
 
     session.stop()
 

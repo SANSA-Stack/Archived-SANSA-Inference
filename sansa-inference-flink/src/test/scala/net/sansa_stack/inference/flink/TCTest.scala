@@ -10,12 +10,14 @@ import org.apache.flink.util.Collector
 import org.apache.jena.vocabulary.RDFS
 import org.junit.{After, Before, Rule, Test}
 import org.junit.rules.TemporaryFolder
-
 import scala.collection.mutable
+
 import org.apache.flink.api.scala._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+
 import net.sansa_stack.inference.data.RDFTriple
+import net.sansa_stack.inference.flink.forwardchaining.TransitiveReasoner
 
 /**
   * A test case for the computation of the transitive closure (TC).
@@ -71,6 +73,30 @@ class TCTest(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
+  def testOptimizedDataSinglePath2(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val length = 10
+
+    // generate dataset
+    val ds = getDataSinglePath(env, length)
+
+    // compute
+    val res = performOptimized(ds)
+      .partitionByRange(0)
+      .sortPartition(0, order = Order.ASCENDING)
+      .sortPartition(1, order = Order.ASCENDING)
+
+    // write to disk
+    res.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
+
+    env.execute()
+
+    // return expected result
+    expectedResult = getExpectedResultSinglePath(length)
+  }
+
+  @Test
   def testNaiveDataSinglePath(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
@@ -94,11 +120,32 @@ class TCTest(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
     expectedResult = getExpectedResultSinglePath(length)
   }
 
+  def performOptimized(triples: DataSet[RDFTriple]): DataSet[(String, String)] = {
+    def iterate(s: DataSet[RDFTriple], ws: DataSet[RDFTriple]): (DataSet[RDFTriple], DataSet[RDFTriple]) = {
+      val resolvedRedirects = triples.join(ws)
+        .where { _.s }
+        .equalTo { _.o }
+        .map { joinResult => joinResult match {
+          case (redirect, link) =>
+            RDFTriple(link.s, redirect.p, redirect.o)
+        }
+        }.name("TC-From-Iteration")
+      (resolvedRedirects, resolvedRedirects)
+    }
+
+    val tc = triples
+      .iterateDelta(triples, 10, Array("s", "o"))(iterate)
+      .name("Final-TC")
+//      .map { cl => cl}
+//      .name("Final-Redirect-Result")
+    tc.map(t => (t.s, t.o))
+  }
+
   def performNaive(ds: DataSet[RDFTriple]): DataSet[(String, String)] = {
     log.info("naive computation...")
 
     // convert to tuples
-    val tuples = ds.map(t => (t.subject, t.`object`))
+    val tuples = ds.map(t => (t.s, t.o))
 
     // perform fix point iteration
     var i = 1
@@ -147,7 +194,7 @@ class TCTest(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
     log.info("semi-naive computation...")
 
     // convert to tuples
-    val tuples = ds.map(t => (t.subject, t.`object`))
+    val tuples = ds.map(t => (t.s, t.o))
 
     val maxIterations = 100
     val keyPosition = 0

@@ -1,16 +1,19 @@
 package net.sansa_stack.inference.spark.rules
 
-import net.sansa_stack.inference.spark.data.{RDFGraphDataFrame, RDFGraphNative}
 import net.sansa_stack.inference.spark.forwardchaining.ForwardRuleReasonerOptimizedSQL
 import org.apache.jena.reasoner.rulesys.Rule
 import org.apache.jena.vocabulary.{OWL2, RDF, RDFS}
 import org.apache.spark.sql.SparkSession
+
 import net.sansa_stack.inference.data.RDFTriple
 import net.sansa_stack.inference.spark.data._
 import net.sansa_stack.inference.spark.forwardchaining.{ForwardRuleReasonerNaive, ForwardRuleReasonerOptimizedNative, ForwardRuleReasonerOptimizedSQL}
 import net.sansa_stack.inference.utils.RuleUtils
-
 import scala.collection.mutable
+
+import net.sansa_stack.inference.spark.data.loader.RDFGraphLoader
+import net.sansa_stack.inference.spark.data.model.{RDFGraphDataFrame, RDFGraphNative}
+import net.sansa_stack.inference.spark.data.writer.RDFGraphWriter
 
 /**
   * A forward chaining implementation of the RDFS entailment regime.
@@ -58,7 +61,7 @@ object SetOfRulesTest {
 
   def loadData(): RDFGraphNative = {
     println("loading data...")
-    val g = RDFGraphLoader.loadGraphFromFile("/home/me/tools/uobm_generator/preload_generated_uobm/univ_all.nt", sparkSession)
+    val g = RDFGraphLoader.loadFromDiskAsRDD(sparkSession, "/home/me/tools/uobm_generator/preload_generated_uobm/univ_all.nt", 2)
     println("finished loading data.")
     g
   }
@@ -118,13 +121,13 @@ object SetOfRulesTest {
   def runNaive(graph: RDFGraphNative, rules: Seq[Rule]) = {
     val reasoner = new ForwardRuleReasonerNaive(sc, rules.toSet)
     val res = reasoner.apply(graph)
-    RDFGraphWriter.writeTriplesToFile(res.toRDD(), "/tmp/spark-tests/naive")
+    RDFGraphWriter.writeTriplesToDisk(res.toRDD(), "/tmp/spark-tests/naive")
   }
 
   def runNative(graph: RDFGraphNative, rules: Seq[Rule]) = {
     val reasoner = new ForwardRuleReasonerOptimizedNative(sparkSession, rules.toSet)
     val res = reasoner.apply(graph)
-    RDFGraphWriter.writeTriplesToFile(res.toRDD(), "/tmp/spark-tests/optimized-native")
+    RDFGraphWriter.writeTriplesToDisk(res.toRDD(), "/tmp/spark-tests/optimized-native")
   }
 
   def runSQL(graph: RDFGraphNative, rules: Seq[Rule]) = {
@@ -133,7 +136,7 @@ object SetOfRulesTest {
 
     val reasoner = new ForwardRuleReasonerOptimizedSQL(sparkSession, rules.toSet)
     val res = reasoner.apply(graphDataframe)
-    RDFGraphWriter.writeDataframeToFile(res.toDataFrame(), "/tmp/spark-tests/optimized-sql")
+    RDFGraphWriter.writeDataframeToDisk(res.toDataFrame(), "/tmp/spark-tests/optimized-sql")
     reasoner.showExecutionStats()
   }
 }

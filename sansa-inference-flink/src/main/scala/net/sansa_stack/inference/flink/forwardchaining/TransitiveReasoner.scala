@@ -1,12 +1,13 @@
 package net.sansa_stack.inference.flink.forwardchaining
 
+import scala.reflect.ClassTag
+
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.scala.{DataSet, _}
+import org.apache.flink.util.Collector
+
 import net.sansa_stack.inference.data.RDFTriple
 import net.sansa_stack.inference.utils.Profiler
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala.DataSet
-import org.apache.flink.util.Collector
-import scala.reflect.ClassTag
-import org.apache.flink.api.scala._
 
 /**
   * An engine to compute the transitive closure (TC) for a set of triples given in several datastructures.
@@ -39,7 +40,7 @@ trait TransitiveReasoner extends Profiler{
   //  }
 
   def addTransitive(triples: Set[RDFTriple]): Set[RDFTriple] = {
-    triples ++ (for (t1 <- triples; t2 <- triples if t1.`object` == t2.subject) yield RDFTriple(t1.subject, t1.predicate, t2.`object`))
+    triples ++ (for (t1 <- triples; t2 <- triples if t1.o == t2.s) yield RDFTriple(t1.s, t1.p, t2.o))
   }
 
   /**
@@ -50,15 +51,15 @@ trait TransitiveReasoner extends Profiler{
     * @return a DataSet containing the transitive closure of the triples
     */
   def computeTransitiveClosure(triples: DataSet[RDFTriple]): DataSet[RDFTriple] = {
-    if(triples.count() == 0) return triples
+    if (triples.count() == 0) return triples
     log.info("computing TC...")
 
     profile {
       // keep the predicate
-      val predicate = triples.first(1).collect().head.predicate
+      val predicate = triples.first(1).collect().head.p
 
       // compute the TC
-      var subjectObjectPairs = triples.map(t => (t.subject, t.`object`))
+      var subjectObjectPairs = triples.map(t => (t.s, t.o))
 
       // because join() joins on keys, in addition the pairs are stored in reversed order (o, s)
       val objectSubjectPairs = subjectObjectPairs.map(t => (t._2, t._1))
@@ -84,7 +85,7 @@ trait TransitiveReasoner extends Profiler{
         i += 1
       } while (nextCount != oldCount)
 
-      println("TC has " + nextCount + " triples.")
+      log.info("TC has " + nextCount + " triples.")
       subjectObjectPairs.map(p => RDFTriple(p._1, predicate, p._2))
     }
   }
@@ -99,15 +100,15 @@ trait TransitiveReasoner extends Profiler{
     * @return a DataSet containing the transitive closure of the triples
     */
   def computeTransitiveClosureOpt(triples: DataSet[RDFTriple]): DataSet[RDFTriple] = {
-    if(triples.count() == 0) return triples
+    if (triples.count() == 0) return triples
     log.info("computing TC...")
 
     profile {
       // keep the predicate
-      val predicate = triples.first(1).collect().head.predicate
+      val predicate = triples.first(1).collect().head.p
 
       // convert to tuples needed for the JOIN operator
-      val subjectObjectPairs = triples.map(t => (t.subject, t.`object`))
+      val subjectObjectPairs = triples.map(t => (t.s, t.o))
 
       // compute the TC
       val res = subjectObjectPairs.iterateWithTermination(10) {
@@ -119,7 +120,7 @@ trait TransitiveReasoner extends Profiler{
           }
             .union(prevPaths)
             .groupBy(0, 1)
-            .reduce((l ,r) => l)
+            .reduce((l, r) => l)
 
           val terminate = prevPaths
             .coGroup(nextPaths)
@@ -170,8 +171,42 @@ trait TransitiveReasoner extends Profiler{
       i += 1
     } while (nextCount != oldCount)
 
-    println("TC has " + nextCount + " edges.")
+    log.info("TC has " + nextCount + " edges.")
     tc
   }
+
+  /**
+    * Computes the transitive closure on a DataSet of triples.
+    * Note, that the assumption is that all triples do have the same predicate.
+    * This implementation uses the Flink iterate operator (see
+    * [[https://ci.apache.org/projects/flink/flink-docs-master/dev/batch/iterations.html"]])
+    *
+    * @param triples the DataSet of triples
+    * @return a DataSet containing the transitive closure of the triples
+    */
+  def computeTransitiveClosureOptSemiNaive(triples: DataSet[RDFTriple]): DataSet[RDFTriple] = {
+    log.info("computing TC...")
+    def iterate(s: DataSet[RDFTriple], ws: DataSet[RDFTriple]): (DataSet[RDFTriple], DataSet[RDFTriple]) = {
+      val resolvedRedirects = triples.join(ws)
+        .where { _.s }
+        .equalTo { _.o }
+        .map { joinResult => joinResult match {
+          case (redirect, link) =>
+            RDFTriple(link.s, redirect.p, redirect.o)
+        }
+        }.name("TC-From-Iteration")
+      (resolvedRedirects, resolvedRedirects)
+    }
+
+    val tc = triples
+      .iterateDelta(triples, 10, Array("s", "o"))(iterate)
+      .name("Final-TC")
+    log.info("finished computing TC")
+    //      .map { cl => cl}
+    //      .name("Final-Redirect-Result")
+    tc
+  }
+
+
 
 }

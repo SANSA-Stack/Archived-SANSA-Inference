@@ -1,11 +1,11 @@
 package net.sansa_stack.inference.rules
 
-import org.apache.jena.reasoner.rulesys.Rule
-
+import scala.collection.mutable
 import scalax.collection.Graph
-import scalax.collection.GraphEdge.DiEdge
 import scalax.collection.edge.LDiEdge
 import scalax.collection.mutable.DefaultGraphImpl
+
+import org.apache.jena.reasoner.rulesys.Rule
 
 /**
   * Given a set of rules R, a rule dependency graph (RDG) is a directed graph G = (V, E) such that
@@ -23,28 +23,51 @@ import scalax.collection.mutable.DefaultGraphImpl
   */
 class RuleDependencyGraph(iniNodes: Iterable[Rule] = Set[Rule](),
                           iniEdges: Iterable[LDiEdge[Rule]] = Set[LDiEdge[Rule]]())
-  extends DefaultGraphImpl[Rule, LDiEdge](iniNodes, iniEdges)(implicitly, DefaultGraphImpl.defaultConfig){
+  extends DefaultGraphImpl[Rule, LDiEdge](iniNodes, iniEdges)(implicitly, DefaultGraphImpl.defaultConfig) {
 
   def this(graph: Graph[Rule, LDiEdge]) = {
     this(graph.nodes.toOuter, graph.edges.toOuter)
   }
+
   /**
     * @return the set of rules contained in this graph
     */
-  def rules() = nodes.toOuter
+  def rules(): Set[Rule] = nodes.toOuter
 
-  def printNodes(): String = rules().map(r => r.getName).mkString("G(", "|",  ")")
+  def printNodes(): String = rules().map(r => r.getName).mkString("G(", "|", ")")
 
   /**
     * Applies topological sort and returns the resulting layers.
     * Each layer contains its level and a set of rules.
+    *
     * @return the layers
     */
-  def layers() = topologicalSort.right.get.toLayered
+  def layers(): Traversable[(Int, Iterable[Rule])] = topologicalSort.right.get.toLayered
     .map(layer => (
       layer._1,
       layer._2.map(node => node.value
       ))
     )
+
+  /**
+    * Returns all nodes that are connected by an edge to itself.
+    *
+    * @return
+    */
+  def loopNodes(): mutable.Set[NodeBase] = {
+    nodes.filter(n => n.outgoing.map(_.target).contains(n))
+  }
+
+  /**
+    * Returns true if there is a cycle in the graph, i.e. either
+    *
+    * - there is a path n1 -> n2 ->  ... -> n1 or
+    * - a loop, i.e. an edge that connects a vertex to itself.
+    *
+    * @return
+    */
+  def hasCycle(): Boolean = {
+    loopNodes().nonEmpty || findCycle.isDefined
+  }
 
 }

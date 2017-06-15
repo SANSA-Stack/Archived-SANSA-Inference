@@ -1,15 +1,17 @@
 package net.sansa_stack.inference.spark.rules
 
-import net.sansa_stack.inference.spark.data.{RDFGraphDataFrame, RDFGraphNative}
 import org.apache.jena.vocabulary.{OWL2, RDF}
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.SparkSession
+
 import net.sansa_stack.inference.data.RDFTriple
 import net.sansa_stack.inference.spark.data._
 import net.sansa_stack.inference.spark.rules.plan.{PlanExecutorNative, PlanExecutorSQL}
 import net.sansa_stack.inference.utils.RuleUtils
-
 import scala.collection.mutable
+
+import net.sansa_stack.inference.spark.data.model.{RDFGraph, RDFGraphDataFrame, RDFGraphNative}
+import net.sansa_stack.inference.spark.data.writer.RDFGraphWriter
 
 /**
   * A forward chaining implementation of the RDFS entailment regime.
@@ -82,19 +84,19 @@ object TransitivityRuleTest {
 
     val planExecutor1 = new PlanExecutorNative(sc)
     val res2 = planExecutor1.execute(plan, graph)
-    RDFGraphWriter.writeTriplesToFile(res2.toRDD(), "/tmp/spark-tests/native")
+    RDFGraphWriter.writeTriplesToDisk(res2.toRDD(), "/tmp/spark-tests/native")
 
 
     // 3. the SQL based rule executor
 
     // generate the SQL context
-    val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+    val sqlContext = SparkSession.builder().getOrCreate().sqlContext
 
     // create a DataFrame
     val df = new RDFGraphDataFrame(graph.toDataFrame(sparkSession))
     val planExecutor2 = new PlanExecutorSQL(sparkSession)
     val res3 = planExecutor2.execute(plan, df)
-    RDFGraphWriter.writeTriplesToFile(res3.toRDD(), "/tmp/spark-tests/sql")
+    RDFGraphWriter.writeTriplesToDisk(res3.toRDD(), "/tmp/spark-tests/sql")
 
     sc.stop()
   }
@@ -109,13 +111,13 @@ object TransitivityRuleTest {
       //  [ prp-trp: (?p rdf:type owl:TransitiveProperty) (?x ?p ?y) (?y ?p ?z) -> (?x ?p ?z) ]
       val rel1 = triplesRDD
         .filter(t =>
-          t.predicate == RDF.`type`.getURI &&
-            t.`object` == OWL2.TransitiveProperty.getURI)
-        .map(t => (t.subject, Nil)) // -> (?p, Nil)
+          t.p == RDF.`type`.getURI &&
+            t.o == OWL2.TransitiveProperty.getURI)
+        .map(t => (t.s, Nil)) // -> (?p, Nil)
       println("REL1\n" + rel1.collect().mkString("\n"))
 
       val rel2 = triplesRDD
-        .map(t => (t.predicate, (t.subject, t.`object`))) // (?p, (?x, ?y))
+        .map(t => (t.p, (t.s, t.o))) // (?p, (?x, ?y))
         .join(rel1) // (?p, ((?x, ?y), Nil))
         .map(e => RDFTriple(e._2._1._1, e._1, e._2._1._2)) // (?x, ?p, ?y)
       println("REL2\n" + rel2.collect().mkString("\n"))

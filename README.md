@@ -1,5 +1,29 @@
+
+
 # SANSA Inference Layer
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/net.sansa-stack/sansa-inference-parent_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/net.sansa-stack/sansa-inference-parent_2.11)
 [![Build Status](https://ci.aksw.org/jenkins/job/SANSA%20Inference%20Layer/job/develop/badge/icon)](https://ci.aksw.org/jenkins/job/SANSA%20Inference%20Layer/job/develop/)
+
+**Table of Contents**
+
+- [SANSA Inference Layer](#)
+	- [Structure](#structure)
+		- [sansa-inference-common](#sansa-inference-common)
+		- [sansa-inference-spark](#sansa-inference-spark)
+		- [sansa-inference-flink](#sansa-inference-flink)
+		- [sansa-inference-tests](#sansa-inference-tests)
+	- [Setup](#setup)
+		- [Prerequisites](#prerequisites)
+		- [From source](#from-source)
+		- [Using Maven pre-build artifacts](#)
+		- [Using SBT](#using-SBT)
+	- [Usage](#usage)
+		- [Example](#example)
+	- [Supported Reasoning Profiles](#)
+				- [RDFS](#rdfs)
+					- [RDFS Simple](#rdfs-simple)
+				- [OWL Horst](#owl-horst)
+
 
 ## Structure
 ### sansa-inference-common
@@ -81,7 +105,7 @@ with `VERSION` beeing the released version you want to use.
   </snapshots>
 </repository>
 ```
-'2'. Add dependency to your pom.xml
+2\. Add dependency to your pom.xml
 
 For Apache Spark
 ```xml
@@ -123,24 +147,70 @@ and for Apache Flink add
 where `VERSION` is the released version you want to use.
 
 ## Usage
+Besides using the Inference API in your application code, we also provide a command line interface with various options that allow for a convenient way to use the core reasoning algorithms:
 ```
 RDFGraphMaterializer 0.1.0
 Usage: RDFGraphMaterializer [options]
- 
- 
-  -i <file> | --input <file>
-        the input file in N-Triple format
-  -o <directory> | --out <directory>
-        the output directory
-  --single-file
-        write the output to a single file in the output directory
-  --sorted
-        sorted output of the triples (per file)
-  -p {rdfs | owl-horst} | --profile {rdfs | owl-horst}
-        the reasoning profile
-  --help
-        prints this usage text
+
+  -i, --input <path1>,<path2>,...
+                           path to file or directory that contains the input files (in N-Triples format)
+  -o, --out <directory>    the output directory
+  --properties <property1>,<property2>,...
+                           list of properties for which the transitive closure will be computed (used only for profile 'transitive')
+  -p, --profile {rdfs | rdfs-simple | owl-horst | transitive}
+                           the reasoning profile
+  --single-file            write the output to a single file in the output directory
+  --sorted                 sorted output of the triples (per file)
+  --parallelism <value>    the degree of parallelism, i.e. the number of Spark partitions used in the Spark operations
+  --help                   prints this usage text
 ```
+This can easily be used when submitting the Job to Spark (resp. Flink), e.g. for Spark
+
+```bash
+/PATH/TO/SPARK/sbin/spark-submit [spark-options] /PATH/TO/INFERENCE-SPARK-DISTRIBUTION/FILE.jar [inference-api-arguments]
+```
+
+and for Flink
+
+```bash
+/PATH/TO/FLINK/bin/flink run [flink-options] /PATH/TO/INFERENCE-FLINK-DISTRIBUTION/FILE.jar [inference-api-arguments]
+```
+
+In addition, we also provide Shell scripts that wrap the Spark (resp. Flink) deployment and can be used by first
+setting the environment variable `SPARK_HOME` (resp. `FLINK_HOME`) and then calling
+```bash
+/PATH/TO/INFERENCE-DISTRIBUTION/bin/cli [inference-api-arguments]
+```
+(Note, that setting Spark (resp. Flink) options isn't supported here and has to be done via the corresponding config files)
+
 ### Example
 
-`RDFGraphMaterializer -i /PATH/TO/FILE/test.nt -o /PATH/TO/TEST_OUTPUT_DIRECTORY/ -p rdfs` will compute the RDFS materialization on the data contained in `test.nt` and write the inferred RDF graph to the given directory `TEST_OUTPUT_DIRECTORY`.
+```bash
+RDFGraphMaterializer -i /PATH/TO/FILE/test.nt -o /PATH/TO/TEST_OUTPUT_DIRECTORY/ -p rdfs
+```
+will compute the RDFS materialization on the data contained in `test.nt` and write the inferred RDF graph to the given directory `TEST_OUTPUT_DIRECTORY`.
+
+## Supported Reasoning Profiles
+
+Currently, the following reasoning profiles are supported:
+
+##### RDFS
+
+###### RDFS Simple
+
+A fragment of RDFS that covers the most relevant vocabulary, prove that it
+preserves the original RDFS semantics, and avoids vocabulary and axiomatic
+information that only serves to reason about the structure of the language
+itself and not about the data it describes.
+It is composed of the reserved vocabulary
+`rdfs:subClassOf`, `rdfs:subPropertyOf`, `rdf:type`, `rdfs:domain` and `rdfs:range`.
+
+More details can be found in
+
+Sergio Muñoz, Jorge Pérez, Claudio Gutierrez:
+    *Simple and Efficient Minimal RDFS.* J. Web Sem. 7(3): 220-234 (2009)
+##### OWL Horst
+OWL Horst is a fragment of OWL and was proposed by Herman ter Horst [1] defining an "intentional" version of OWL sometimes also referred to as pD\*. It can be materialized using a set of rules that is an extension of the set of RDFS rules. OWL Horst is supposed to be one of the most common OWL flavours for scalable OWL reasoning while bridging the gap between the unfeasible OWL Full and the low expressiveness of RDFS.
+
+[1] Herman J. ter Horst:
+*Completeness, decidability and complexity of entailment for RDF Schema and a semantic extension involving the OWL vocabulary.* J. Web Sem. 3(2-3): 79-115 (2005)
