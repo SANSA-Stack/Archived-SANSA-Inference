@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>net.sansa-stack</groupId>
   <artifactId>sansa-inference-parent_2.11</artifactId>
-  <version>0.2.0</version>
+  <version>0.3.0</version>
   <packaging>pom</packaging>
   <name>Inference API - Parent</name>
 
@@ -66,25 +66,26 @@
     <!--<java.version>>=1.8</java.version>-->
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <scala.version>2.11.8</scala.version>
+    <scala.version>2.11.11</scala.version>
     <scala.binary.version>2.11</scala.binary.version>
-    <spark.version>2.1.1</spark.version>
-    <flink.version>1.3.0</flink.version>
-    <jena.version>3.1.1</jena.version>
+    <spark.version>2.2.1</spark.version>
+    <flink.version>1.3.2</flink.version>
+    <jena.version>3.5.0</jena.version>
     <sansa.stack.version>0.2.0</sansa.stack.version>
     <sansa.rdf.version>${sansa.stack.version}</sansa.rdf.version>
     <sansa.query.version>${sansa.stack.version}</sansa.query.version>
     <sansa.owl.version>${sansa.stack.version}</sansa.owl.version>
-    <jsa.subversion>1-1</jsa.subversion>
+    <jsa.subversion>1</jsa.subversion>
     <jsa.version>${jena.version}-${jsa.subversion}</jsa.version>
     <PermGen>64m</PermGen>
     <MaxPermGen>512m</MaxPermGen>
     <CodeCacheSize>512m</CodeCacheSize>
     <gpg.keyname>AKSW</gpg.keyname>
+    <owlapi.version>5.1.3</owlapi.version>
   </properties>
 
   <prerequisites>
-    <maven>3.0</maven>
+    <maven>3.1</maven>
   </prerequisites>
 
   <dependencyManagement>
@@ -130,6 +131,12 @@
         <version>${scala.version}</version>
       </dependency>
 
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-client</artifactId>
+        <version>2.7.0</version>
+      </dependency>
+
       <!-- Apache Spark Core -->
       <dependency>
         <groupId>org.apache.spark</groupId>
@@ -171,6 +178,28 @@
         <version>${jena.version}</version>
       </dependency>
 
+      <!-- OWL API -->
+      <dependency>
+        <groupId>net.sourceforge.owlapi</groupId>
+        <artifactId>owlapi-api</artifactId>
+        <version>${owlapi.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>net.sourceforge.owlapi</groupId>
+        <artifactId>owlapi-apibinding</artifactId>
+        <version>${owlapi.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>net.sourceforge.owlapi</groupId>
+        <artifactId>owlapi-impl</artifactId>
+        <version>${owlapi.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>net.sourceforge.owlapi</groupId>
+        <artifactId>owlapi-parsers</artifactId>
+        <version>${owlapi.version}</version>
+      </dependency>
+
       <!-- Graph API -->
       <dependency>
         <groupId>com.assembla.scala-incubator</groupId>
@@ -185,24 +214,24 @@
       <dependency>
         <groupId>org.jgrapht</groupId>
         <artifactId>jgrapht-core</artifactId>
-        <version>1.0.1</version>
+        <version>1.1.0</version>
       </dependency>
       <dependency>
         <groupId>org.jgrapht</groupId>
         <artifactId>jgrapht-ext</artifactId>
-        <version>1.0.1</version>
+        <version>1.1.0</version>
       </dependency>
       <dependency>
         <groupId>org.gephi</groupId>
         <artifactId>gephi-toolkit</artifactId>
-        <version>0.9.1</version>
+        <version>0.9.2</version>
       </dependency>
 
         <!-- Apache Calcite -->
         <dependency>
             <groupId>org.apache.calcite</groupId>
             <artifactId>calcite-core</artifactId>
-            <version>1.12.0</version>
+            <version>1.13.0</version>
         </dependency>
 
       <!-- Test -->
@@ -215,7 +244,19 @@
       <dependency>
         <groupId>org.scalatest</groupId>
         <artifactId>scalatest_${scala.binary.version}</artifactId>
-        <version>3.0.3</version>
+        <version>3.0.4</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.specs2</groupId>
+        <artifactId>specs2-core_${scala.binary.version}</artifactId>
+        <version>4.0.2</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.specs2</groupId>
+        <artifactId>specs2-junit_${scala.binary.version}</artifactId>
+        <version>4.0.2</version>
         <scope>test</scope>
       </dependency>
 
@@ -223,14 +264,14 @@
       <dependency>
         <groupId>com.typesafe.scala-logging</groupId>
         <artifactId>scala-logging_${scala.binary.version}</artifactId>
-        <version>3.5.0</version>
+        <version>3.7.2</version>
       </dependency>
 
       <!-- Guava -->
       <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
-        <version>21.0</version>
+        <version>22.0</version>
       </dependency>
 
       <!-- Shapeless lib -->
@@ -244,8 +285,16 @@
       <dependency>
         <groupId>com.github.scopt</groupId>
         <artifactId>scopt_${scala.binary.version}</artifactId>
-        <version>3.5.0</version>
+        <version>3.7.0</version>
       </dependency>
+
+      <!-- Config API -->
+      <dependency>
+        <groupId>com.typesafe</groupId>
+        <artifactId>config</artifactId>
+        <version>1.3.2</version>
+      </dependency>
+
 
 
     </dependencies>
@@ -266,7 +315,7 @@
         <plugin>
           <groupId>net.alchim31.maven</groupId>
           <artifactId>scala-maven-plugin</artifactId>
-          <version>3.2.2</version>
+          <version>3.3.1</version>
           <executions>
             <execution>
               <goals>
@@ -283,7 +332,7 @@
                   <arg>-feature</arg>
                   <arg>-dependencyfile</arg>
                   <arg>${project.build.directory}/.scala_dependencies</arg>
-		  <arg>-Xmax-classfile-name</arg>
+                  <arg>-Xmax-classfile-name</arg>
                   <arg>128</arg>
                 </args>
                 <jvmArgs>
@@ -312,7 +361,7 @@
 
         <plugin>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.6.1</version>
+          <version>3.7.0</version>
           <configuration>
             <source>${maven.compiler.source}</source>
             <target>${maven.compiler.target}</target>
@@ -324,14 +373,14 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>2.20</version>
+          <version>2.20.1</version>
         </plugin>
 
         <!-- Scalatest -->
         <plugin>
           <groupId>org.scalatest</groupId>
           <artifactId>scalatest-maven-plugin</artifactId>
-          <version>1.0</version>
+          <version>2.0.0</version>
           <configuration>
             <tagsToExclude>net.sansa_stack.test.conformance.IntegrationTestSuite</tagsToExclude>
           </configuration>
@@ -341,7 +390,7 @@
         <plugin>
           <groupId>com.amashchenko.maven.plugin</groupId>
           <artifactId>gitflow-maven-plugin</artifactId>
-          <version>1.5.0</version>
+          <version>1.8.0</version>
 
           <configuration>
             <installProject>false</installProject>
@@ -357,19 +406,20 @@
               <versionTagPrefix>v</versionTagPrefix>
               <origin>origin</origin>
             </gitFlowConfig>
+            <pushRemote>false</pushRemote>
           </configuration>
         </plugin>
 
         <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>versions-maven-plugin</artifactId>
-        <version>2.3</version>
+        <version>2.5</version>
         </plugin>
 
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-enforcer-plugin</artifactId>
-          <version>1.4.1</version>
+          <version>3.0.0-M1</version>
           <executions>
             <execution>
               <id>enforce-versions</id>
@@ -426,7 +476,7 @@
         <plugin>
           <groupId>com.versioneye</groupId>
           <artifactId>versioneye-maven-plugin</artifactId>
-          <version>3.11.2</version>
+          <version>3.11.4</version>
         </plugin>
 
         <plugin>
@@ -438,19 +488,13 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-javadoc-plugin</artifactId>
-          <version>2.10.4</version>
+          <version>3.0.0-M1</version>
         </plugin>
 
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-shade-plugin</artifactId>
-          <version>3.0.0</version>
-        </plugin>
-
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-surefire-plugin</artifactId>
-          <version>2.20</version>
+          <version>3.1.0</version>
         </plugin>
 
         <plugin>
@@ -460,12 +504,12 @@
 
         <plugin>
           <artifactId>maven-assembly-plugin</artifactId>
-          <version>3.0.0</version>
+          <version>3.1.0</version>
         </plugin>
 
         <plugin>
           <artifactId>maven-dependency-plugin</artifactId>
-          <version>3.0.1</version>
+          <version>3.0.2</version>
         </plugin>
 
       </plugins>
@@ -742,9 +786,5 @@
         </plugins>
       </build>
     </profile>
-
   </profiles>
-
-
-
 </project>

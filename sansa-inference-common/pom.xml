@@ -4,12 +4,12 @@
   <parent>
     <artifactId>sansa-inference-parent_2.11</artifactId>
     <groupId>net.sansa-stack</groupId>
-    <version>0.2.0</version>
+    <version>0.3.0</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   <groupId>net.sansa-stack</groupId>
   <artifactId>sansa-inference-common_${scala.binary.version}</artifactId>
-  <version>0.2.0</version>
+  <version>0.3.0</version>
   <name>Inference API - Common</name>
   <description>A set of common objects used in the Inference API</description>
 
@@ -31,12 +31,12 @@
     <dependency>
       <groupId>org.apache.jena</groupId>
       <artifactId>jena-tdb</artifactId>
-      <version>3.2.0</version>
+      <version>3.5.0</version>
     </dependency>
     <dependency>
       <groupId>org.apache.jena</groupId>
       <artifactId>jena-cmds</artifactId>
-      <version>3.2.0</version>
+      <version>3.5.0</version>
     </dependency>
 
     <!-- Graph API -->
@@ -78,6 +78,12 @@
       <groupId>org.apache.calcite</groupId>
       <artifactId>calcite-core</artifactId>
     </dependency>
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+      <version>3.5.0</version>
+    </dependency>
+
 
     <!-- Test -->
     <dependency>
@@ -91,8 +97,8 @@
   </dependencies>
 
   <build>
-    <sourceDirectory>src/main/scala</sourceDirectory>
-    <testSourceDirectory>src/test/scala</testSourceDirectory>
+    <!--<sourceDirectory>src/main/scala,src/main/resources</sourceDirectory>-->
+    <!--<testSourceDirectory>src/test/scala</testSourceDirectory>-->
     <!--<outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>-->
     <!--<testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>-->
     <plugins>
