@@ -38,6 +38,12 @@ under the License.
 			<groupId>net.sansa-stack</groupId>
 			<artifactId>sansa-inference-common_${scala.binary.version}</artifactId>
 			<version>${parent.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.calcite</groupId>
+					<artifactId>calcite-core</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>net.sansa-stack</groupId>
@@ -51,14 +57,17 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-scala_${scala.binary.version}</artifactId>
+			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
+			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients_${scala.binary.version}</artifactId>
+			<scope>provided</scope>
 		</dependency>
 
 		<!-- Apache JENA 3.x-->
@@ -344,6 +353,16 @@ under the License.
 									<exclude>mysql:*</exclude>
 									<exclude>jfree:*</exclude>
 									<exclude>org.scala-lang.modules:*</exclude>
+									<exclude>org.gephi:*</exclude>
+									<exclude>org.jfree:*</exclude>
+									<exclude>com.itextpdf:*</exclude>
+									<exclude>org.apache.poi:*</exclude>
+									<exclude>org.apache.batik:*</exclude>
+									<exclude>org.xerial:sqlite-jdbc</exclude>
+									<exclude>org.netbeans.api:*</exclude>
+									<exclude>org.netbeans:*</exclude>
+									<!--<exclude>xml-apis:*</exclude>-->
+									<!--<exclude>com.fasterxml.jackson.core:*</exclude>-->
 								</excludes>
 							</artifactSet>
 							<filters>
@@ -362,11 +381,21 @@ under the License.
 										<exclude>META-INF/*.SF</exclude>
 										<exclude>META-INF/*.DSA</exclude>
 										<exclude>META-INF/*.RSA</exclude>
+										<exclude>META-INF/maven/**</exclude>
+										<exclude>META-INF/javax.xml.parsers.DocumentBuilderFactory</exclude>
 									</excludes>
+								</filter>
+								<filter>
+									<artifact>org.apache.jena:*</artifact>
+									<includes>
+										<include>**</include>
+									</includes>
 								</filter>
 							</filters>
 							<finalName>dist-${project.artifactId}-${project.version}</finalName>
 							<transformers>
+								<transformer
+										implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
 								<!-- add Main-Class to manifest file -->
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
 									<mainClass>net.sansa_stack.inference.flink.RDFGraphMaterializer</mainClass>
@@ -540,25 +569,37 @@ under the License.
 											<exclude>mysql:*</exclude>
 											<exclude>jfree:*</exclude>
 											<exclude>org.scala-lang.modules:*</exclude>
+											<exclude>org.gephi:*</exclude>
+											<exclude>org.jfree:*</exclude>
+											<exclude>com.itextpdf:*</exclude>
+											<exclude>org.apache.poi:*</exclude>
+											<exclude>org.apache.batik:*</exclude>
+											<exclude>org.xerial:sqlite-jdbc</exclude>
+											<exclude>org.netbeans.api:*</exclude>
+											<exclude>org.netbeans:*</exclude>
+											<!--<exclude>xml-apis:*</exclude>-->
+											<!--<exclude>com.fasterxml.jackson.core:*</exclude>-->
 										</excludes>
 									</artifactSet>
 									<filters>
 										<filter>
-											<artifact>org.apache.flink:*</artifact>
-											<excludes>
-												<exclude>org/apache/flink/shaded/**</exclude>
-												<exclude>web-docs/**</exclude>
-											</excludes>
-										</filter>
-										<filter>
-											<!-- Do not copy the signatures in the META-INF folder.
-                                            Otherwise, this might cause SecurityExceptions when using the JAR. -->
 											<artifact>*:*</artifact>
 											<excludes>
+												<!-- Avoid a Spark error: Invalid signature file digest for Manifest main attributes-->
 												<exclude>META-INF/*.SF</exclude>
 												<exclude>META-INF/*.DSA</exclude>
 												<exclude>META-INF/*.RSA</exclude>
+												<exclude>META-INF/maven/**</exclude>
+												<exclude>META-INF/javax.xml.parsers.DocumentBuilderFactory</exclude>
+												<exclude>META-INF/services/javax.xml.parsers.DocumentBuilderFactory</exclude>
+
 											</excludes>
+										</filter>
+										<filter>
+											<artifact>org.apache.jena:*</artifact>
+											<includes>
+												<include>**</include>
+											</includes>
 										</filter>
 									</filters>
 									<finalName>dist-${project.artifactId}-${project.version}</finalName>

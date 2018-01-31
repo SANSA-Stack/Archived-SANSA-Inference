@@ -90,10 +90,10 @@ object RDFGraphMaterializer {
 
     // compute inferred graph
     val inferredGraph = reasoner.apply(graph)
-    println(s"|G_inf| = ${inferredGraph.size()}")
+//    println(s"|G_inf| = ${inferredGraph.size()}")
 
     // write triples to disk
-//    RDFGraphWriter.writeToDisk(inferredGraph, output, writeToSingleFile, sortedOutput)
+    RDFGraphWriter.writeToDisk(inferredGraph, output, writeToSingleFile, sortedOutput)
 
     //    println(env.getExecutionPlan())
 
