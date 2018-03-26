@@ -42,7 +42,7 @@ object RDFGraphMaterializer {
     val session = SparkSession.builder
       .appName(s"SPARK $profile Reasoning")
       .master("local[4]")
-//      .config("spark.eventLog.enabled", "true")
+      .config("spark.eventLog.enabled", "true")
       .config("spark.hadoop.validateOutputSpecs", "false") // override output files
       .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
       .config("spark.default.parallelism", parallelism)
@@ -59,7 +59,7 @@ object RDFGraphMaterializer {
 
     // load triples from disk
     val graph = RDFGraphLoader.loadFromDisk(session, input, parallelism)
-//    println(s"|G| = ${graph.size()}")
+    println(s"|G| = ${graph.size()}")
 
     // create reasoner
     val reasoner = profile match {
@@ -74,7 +74,7 @@ object RDFGraphMaterializer {
 
     // compute inferred graph
     val inferredGraph = reasoner.apply(graph)
-//    println(s"|G_inf| = ${inferredGraph.size()}")
+    println(s"|G_inf| = ${inferredGraph.size()}")
 
     // write triples to disk
     RDFGraphWriter.writeToDisk(inferredGraph, output.toString, writeToSingleFile, sortedOutput)
@@ -98,7 +98,7 @@ object RDFGraphMaterializer {
 
   // read ReasoningProfile enum
   implicit val nodeRead: scopt.Read[Node] =
-    scopt.Read.reads(NodeFactory.createURI(_))
+    scopt.Read.reads(NodeFactory.createURI)
 
   // the CLI parser
   val parser = new scopt.OptionParser[Config]("RDFGraphMaterializer") {
