@@ -10,9 +10,11 @@ import org.apache.jena.riot.Lang
 import org.apache.spark.sql.{Dataset, Encoder, SaveMode, SparkSession}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.slf4j.LoggerFactory
-
 import scala.language.implicitConversions
+
 import org.apache.jena.vocabulary.RDF
+
+import net.sansa_stack.inference.spark.utils.rdd.SetRDD
 
 /**
   * A class that provides methods to load an RDF graph from disk.
@@ -47,6 +49,20 @@ object RDFGraphLoader {
 //      .repartition(minPartitions)
 
 //  logger.info("finished loading " + triples.count() + " triples in " + (System.currentTimeMillis()-startTime) + "ms.")
+    RDFGraph(triples)
+  }
+
+  def loadFromDiskAsSet(session: SparkSession, path: String, minPartitions: Int = 2): RDFGraph = {
+    logger.info("loading triples from disk...")
+    val startTime = System.currentTimeMillis()
+
+    val triples = SetRDD(session.sparkContext
+      .textFile(path, minPartitions) // read the text file
+      .filter(line => !line.trim().isEmpty & !line.startsWith("#"))
+      .map(new NTriplesStringToJenaTriple())) // convert to triple object
+    //      .repartition(minPartitions)
+
+    //  logger.info("finished loading " + triples.count() + " triples in " + (System.currentTimeMillis()-startTime) + "ms.")
     RDFGraph(triples)
   }
 
@@ -209,7 +225,7 @@ object RDFGraphLoader {
   }
 
   def main(args: Array[String]): Unit = {
-    import net.sansa_stack.rdf.spark.io.rdf._
+    import net.sansa_stack.rdf.spark.io._
 
     val path = args(0)
     val lang = args(1) match {
