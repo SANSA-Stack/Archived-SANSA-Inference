@@ -4,12 +4,12 @@
   <parent>
     <artifactId>sansa-inference-parent_2.11</artifactId>
     <groupId>net.sansa-stack</groupId>
-    <version>0.3.0</version>
+    <version>0.4.0</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   <groupId>net.sansa-stack</groupId>
   <artifactId>sansa-inference-common_${scala.binary.version}</artifactId>
-  <version>0.3.0</version>
+  <version>0.4.0</version>
   <name>Inference API - Common</name>
   <description>A set of common objects used in the Inference API</description>
 
@@ -31,21 +31,19 @@
     <dependency>
       <groupId>org.apache.jena</groupId>
       <artifactId>jena-tdb</artifactId>
-      <version>3.5.0</version>
     </dependency>
     <dependency>
       <groupId>org.apache.jena</groupId>
       <artifactId>jena-cmds</artifactId>
-      <version>3.5.0</version>
     </dependency>
 
     <!-- Graph API -->
     <dependency>
-      <groupId>com.assembla.scala-incubator</groupId>
+      <groupId>org.scala-graph</groupId>
       <artifactId>graph-core_${scala.binary.version}</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.assembla.scala-incubator</groupId>
+      <groupId>org.scala-graph</groupId>
       <artifactId>graph-dot_${scala.binary.version}</artifactId>
     </dependency>
     <dependency>
@@ -57,6 +55,10 @@
       <artifactId>jgrapht-ext</artifactId>
     </dependency>
     <dependency>
+      <groupId>org.jgrapht</groupId>
+      <artifactId>jgrapht-io</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.gephi</groupId>
       <artifactId>gephi-toolkit</artifactId>
       <exclusions>
@@ -65,6 +67,7 @@
           <artifactId>google-collections</artifactId>
         </exclusion>
       </exclusions>
+      <scope>compile</scope>
     </dependency>
 
     <!-- Guava -->
@@ -84,6 +87,11 @@
       <version>3.5.0</version>
     </dependency>
 
+    <!-- Scopt CLI API-->
+    <dependency>
+      <groupId>com.github.scopt</groupId>
+      <artifactId>scopt_${scala.binary.version}</artifactId>
+    </dependency>
 
     <!-- Test -->
     <dependency>

@@ -4,12 +4,12 @@
   <parent>
     <artifactId>sansa-inference-parent_2.11</artifactId>
     <groupId>net.sansa-stack</groupId>
-    <version>0.3.0</version>
+    <version>0.4.0</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   <groupId>net.sansa-stack</groupId>
   <artifactId>sansa-inference-tests_${scala.binary.version}</artifactId>
-  <version>0.3.0</version>
+  <version>0.4.0</version>
   <name>Inference API - Tests</name>
   <description>Contains common data and utils for inference API testing</description>
 
@@ -53,6 +53,11 @@
     <dependency>
       <groupId>org.scalatest</groupId>
       <artifactId>scalatest_${scala.binary.version}</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.typesafe.scala-logging</groupId>
+      <artifactId>scala-logging_${scala.binary.version}</artifactId>
     </dependency>
   </dependencies>
 

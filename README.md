@@ -2,7 +2,7 @@
 
 # SANSA Inference Layer
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/net.sansa-stack/sansa-inference-parent_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/net.sansa-stack/sansa-inference-parent_2.11)
-[![Build Status](https://ci.aksw.org/jenkins/job/SANSA%20Inference%20Layer/job/develop/badge/icon)](https://ci.aksw.org/jenkins/job/SANSA%20Inference%20Layer/job/develop/)
+[![Build Status](https://travis-ci.com/SANSA-Stack/SANSA-Inference.svg?branch=develop)](https://travis-ci.com/SANSA-Stack/SANSA-Inference)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Twitter](https://img.shields.io/twitter/follow/SANSA_Stack.svg?style=social)](https://twitter.com/SANSA_Stack)
 
@@ -17,14 +17,15 @@
 	- [Setup](#setup)
 		- [Prerequisites](#prerequisites)
 		- [From source](#from-source)
-		- [Using Maven pre-build artifacts](#)
+		- [Using Maven pre-build artifacts](#using-maven-pre-build-artifacts)
 		- [Using SBT](#using-SBT)
 	- [Usage](#usage)
 		- [Example](#example)
-	- [Supported Reasoning Profiles](#)
+	- [Supported Reasoning Profiles](#supported-reasoning-profiles)
 		- [RDFS](#rdfs)
 		- [RDFS Simple](#rdfs-simple)
 		- [OWL Horst](#owl-horst)
+  	- [How to Contribute](#how-to-contribute)
 
 
 ## Structure
@@ -216,3 +217,7 @@ OWL Horst is a fragment of OWL and was proposed by Herman ter Horst [1] defining
 
 [1] Herman J. ter Horst:
 *Completeness, decidability and complexity of entailment for RDF Schema and a semantic extension involving the OWL vocabulary.* J. Web Sem. 3(2-3): 79-115 (2005)
+
+## How to Contribute
+We always welcome new contributors to the project! Please see [our contribution guide](http://sansa-stack.net/contributing-to-sansa/) for more details on how to get started contributing to SANSA.
+
