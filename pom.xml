@@ -73,7 +73,7 @@
     <jena.version>3.7.0</jena.version>
     <sansa.stack.version>0.4.0</sansa.stack.version>
     <sansa.rdf.version>${sansa.stack.version}</sansa.rdf.version>
-    <sansa.query.version>${sansa.stack.version}</sansa.query.version>
+    <sansa.query.version>0.4.0</sansa.query.version>
     <sansa.owl.version>${sansa.stack.version}</sansa.owl.version>
     <jsa.subversion>1</jsa.subversion>
     <jsa.version>${jena.version}-${jsa.subversion}</jsa.version>
@@ -115,7 +115,7 @@
       <!-- Query Layer -->
       <dependency>
         <groupId>${project.groupId}</groupId>
-        <artifactId>sansa-query-spark-sparqlify</artifactId>
+        <artifactId>sansa-query-spark_2.11</artifactId>
         <version>${sansa.query.version}</version>
       </dependency>
       <dependency>
@@ -330,8 +330,52 @@
         <version>1.3.3</version>
       </dependency>
 
-
-
+      <!-- Dependencies for SPECIAL policy reasoning -->
+      <dependency>
+        <groupId>net.sourceforge.owlapi</groupId>
+        <artifactId>owlapi-api</artifactId>
+        <version>5.1.3</version>
+      </dependency>
+      <dependency>
+        <groupId>net.sourceforge.owlapi</groupId>
+        <artifactId>owlapi-apibinding</artifactId>
+        <version>5.1.3</version>
+      </dependency>
+      <dependency>
+        <groupId>net.sourceforge.owlapi</groupId>
+        <artifactId>owlapi-impl</artifactId>
+        <version>5.1.3</version>
+      </dependency>
+      <dependency>
+        <groupId>net.sourceforge.owlapi</groupId>
+        <artifactId>owlapi-parsers</artifactId>
+        <version>5.1.3</version>
+      </dependency>
+      <dependency>
+        <groupId>org.aksw.owl2sparql</groupId>
+        <artifactId>owl2sparql-core-special</artifactId>
+        <version>0.2-SNAPSHOT</version>
+      </dependency>
+      <dependency>
+        <groupId>org.aksw.sparqlify</groupId>
+        <artifactId>sparqlify-core</artifactId>
+        <version>0.8.5</version>
+        <exclusions>
+          <exclusion>
+            <groupId>org.aksw.sparqlify</groupId>
+            <artifactId>sparqlify-tests</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hive</groupId>
+            <artifactId>hive-jdbc</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.jena</groupId>
+            <artifactId>jena-</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <!-- /Dependencies for SPECIAL policy reasoning -->
     </dependencies>
   </dependencyManagement>
 
