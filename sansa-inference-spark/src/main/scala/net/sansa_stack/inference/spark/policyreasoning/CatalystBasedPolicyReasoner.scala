@@ -10,17 +10,17 @@ import org.aksw.owl2sparql.OWLClassExpressionToSPARQLConverter
 import org.aksw.sparqlify.core.domain.input.SparqlSqlStringRewrite
 import org.aksw.sparqlify.core.interfaces.SparqlSqlStringRewriter
 import org.apache.jena.graph.Triple
-import org.apache.jena.query.{Query, QueryFactory}
+import org.apache.jena.query.QueryFactory
 import org.apache.jena.riot.Lang
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Row, SparkSession}
 import org.semanticweb.owlapi.apibinding.OWLManager
-
-import scala.collection.JavaConverters._
 import org.semanticweb.owlapi.model.{OWLClass, OWLClassExpression, OWLObjectHasValue, OWLObjectIntersectionOf, OWLObjectSomeValuesFrom}
 import org.semanticweb.owlapi.reasoner.OWLReasoner
 import org.semanticweb.owlapi.reasoner.structural.StructuralReasonerFactory
 import uk.ac.manchester.cs.owl.owlapi.OWLClassImpl
+
+import scala.collection.JavaConverters._
 
 
 case class CatalystBasedPolicyReasonerConfig(
