@@ -523,7 +523,12 @@
                         io.netty:netty and io.netty:netty-all.
                       -->
                       <exclude>org.jboss.netty</exclude>
-                      <exclude>org.codehaus.groovy</exclude>
+                      <!--
+                        Commented out since groovy stuff is a transitive
+                        dependency of Gremlinator stuff which is part of
+                        SANSA-Query
+                      -->
+                      <!--<exclude>org.codehaus.groovy</exclude>-->
                     </excludes>
                     <searchTransitive>true</searchTransitive>
                   </bannedDependencies>
