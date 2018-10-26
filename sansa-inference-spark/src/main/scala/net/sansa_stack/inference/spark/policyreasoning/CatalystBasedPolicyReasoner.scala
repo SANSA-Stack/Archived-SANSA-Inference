@@ -110,7 +110,7 @@ object CatalystBasedPolicyReasoner {
       rewriter.rewrite(QueryFactory.create(sparqlQuery))
     var sqlQueryStr = sqlQuery.getSqlQueryString
 
-    val atomicClssinSignature = getClasses(ce)
+    val atomicClassesInSignature = getClasses(ce)
 
 
     /*
@@ -129,7 +129,7 @@ object CatalystBasedPolicyReasoner {
      * This replacement is not performed when the respective class does not
      * have any superclass except owl:Thing.
      */
-    atomicClssinSignature.foreach(cls => {
+    atomicClassesInSignature.foreach(cls => {
       val subClsss: Set[OWLClass] =
         reasoner.getSubClasses(cls).getFlattened.asScala.toSet[OWLClass]
           .filter(!_.isOWLNothing) ++ Set(cls)
@@ -203,8 +203,8 @@ object CatalystBasedPolicyReasoner {
     val converter = new OWLClassExpressionToSPARQLConverter
 
     val spark = SparkSession.builder
-      .master("local")
-      .appName("spark session example")
+      .master("local[*]")
+      .appName("Catalyst-based policy reasoner")
       .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
       .config("spark.kryo.registrator", String.join(
         ", ",
@@ -233,7 +233,7 @@ object CatalystBasedPolicyReasoner {
 
       var usersViolatingEntries = Seq.empty[String]
 
-      policyCEs.iterator.takeWhile(_ => !coveringPolicyFound).foreach(ce => {
+      policyCEs.takeWhile(_ => !coveringPolicyFound).foreach(ce => {
         val res: (Boolean, Seq[String]) =
           checkForViolation(user, ce, converter, rewriter, reasoner, spark)
         coveringPolicyFound = coveringPolicyFound || res._1
