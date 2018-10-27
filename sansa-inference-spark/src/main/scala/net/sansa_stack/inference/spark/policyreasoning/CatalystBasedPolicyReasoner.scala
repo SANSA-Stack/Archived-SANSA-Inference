@@ -229,8 +229,8 @@ object CatalystBasedPolicyReasoner {
     userPolicies.foreach(userPolicy => {
       val user = userPolicy._1
       val policyCEs = userPolicy._2
-      var coveringPolicyFound = false
 
+      var coveringPolicyFound = false
       var usersViolatingEntries = Seq.empty[String]
 
       policyCEs.takeWhile(_ => !coveringPolicyFound).foreach(ce => {
@@ -239,7 +239,6 @@ object CatalystBasedPolicyReasoner {
         coveringPolicyFound = coveringPolicyFound || res._1
         usersViolatingEntries = usersViolatingEntries ++ res._2
       })
-
 
       if (!coveringPolicyFound) {
         println(s"Found logged data of user $user that is not covered by any " +

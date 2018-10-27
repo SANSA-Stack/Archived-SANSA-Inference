@@ -114,7 +114,7 @@ object SemanticPartitioningBasedPolicyReasoner {
                                  resultsDirPath: String,
                                  spark: SparkSession
                                ): (Boolean, Seq[String]) = {
-    val coveringPolicyFound = false
+    var coveringPolicyFound = false
     var violatingLogEntryIRIs = Seq.empty[String]
 
     val resultsDir = new File(resultsDirPath)
