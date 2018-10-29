@@ -245,6 +245,19 @@
             <groupId>org.aksw.sparqlify</groupId>
             <artifactId>sparqlify-core</artifactId>
         </dependency>
+        <dependency>
+            <groupId>de.javakaffee</groupId>
+            <artifactId>kryo-serializers</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.google.inject.extensions</groupId>
+            <artifactId>guice-multibindings</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.rdf4j</groupId>
+            <artifactId>rdf4j-rio-api</artifactId>
+            <version>2.3.0</version>
+        </dependency>
         <!-- /Dependencies for SPECIAL policy reasoning -->
     </dependencies>
 
@@ -432,7 +445,7 @@
                                             <exclude>org.eclipse.jetty:jetty-security</exclude>
                                             <exclude>org.eclipse.jetty:jetty-servlet</exclude>
                                             <exclude>org.eclipse.jetty:*</exclude>
-                                            <exclude>org.eclipse.*:*</exclude>
+                                            <!--<exclude>org.eclipse.*:*</exclude>-->
                                             <exclude>org.glassfish.*:*</exclude>
                                             <exclude>org.netbeans.api:*</exclude>
                                             <exclude>org.netbeans:*</exclude>
@@ -532,6 +545,30 @@
                                         </filter>
                                         <filter>
                                             <artifact>org.aksw.jena-sparql-api:*</artifact>
+                                            <includes>
+                                                <include>**</include>
+                                            </includes>
+                                        </filter>
+                                        <filter>
+                                            <artifact>net.sourceforge.owlapi:*</artifact>
+                                            <includes>
+                                                <include>**</include>
+                                            </includes>
+                                        </filter>
+                                        <filter>
+                                            <artifact>org.eclipse.rdf4j:*</artifact>
+                                            <includes>
+                                                <include>**</include>
+                                            </includes>
+                                        </filter>
+                                        <filter>
+                                            <artifact>net.sansa-stack:*</artifact>
+                                            <includes>
+                                                <include>**</include>
+                                            </includes>
+                                        </filter>
+                                        <filter>
+                                            <artifact>de.javakaffee:kryo-serializers</artifact>
                                             <includes>
                                                 <include>**</include>
                                             </includes>
@@ -725,6 +762,12 @@
                                         </filter>
                                         <filter>
                                             <artifact>org.apache.jena:*</artifact>
+                                            <includes>
+                                                <include>**</include>
+                                            </includes>
+                                        </filter>
+                                        <filter>
+                                            <artifact>net.sourceforge.owlapi:*</artifact>
                                             <includes>
                                                 <include>**</include>
                                             </includes>
