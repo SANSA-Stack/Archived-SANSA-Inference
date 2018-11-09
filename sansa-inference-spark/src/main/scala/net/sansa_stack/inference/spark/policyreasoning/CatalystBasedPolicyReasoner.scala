@@ -235,12 +235,14 @@ object CatalystBasedPolicyReasoner {
     val userPolicies: Map[String, Set[OWLClassExpression]] =
       PolicyReader.readPolicyFile(consentFilePath)
 
+    var violations: Seq[(String, Seq[String])] = Seq.empty
+
     userPolicies.foreach(userPolicy => {
       val user = userPolicy._1
       val policyCEs = userPolicy._2
 
       var coveringPolicyFound = false
-      var usersViolatingEntries = Seq.empty[String]
+      var usersViolatingEntries: Seq[String] = Seq.empty
 
       policyCEs.takeWhile(_ => !coveringPolicyFound).foreach(ce => {
         val res: (Boolean, Seq[String]) =
@@ -253,6 +255,7 @@ object CatalystBasedPolicyReasoner {
         println(s"Found logged data of user $user that is not covered by any " +
           s"policy. The entries are:")
         usersViolatingEntries.foreach(println)
+        violations = violations ++ Seq((user, usersViolatingEntries))
       } else {
         println(s"No violations found for user $user")
       }
@@ -262,9 +265,10 @@ object CatalystBasedPolicyReasoner {
     val overallTime = reasoningDoneTime - startTime
     val reasoningTime = reasoningDoneTime - reasoningStartTime
     val resultFile = new File("results.txt")
-    val result = s"overall: $overallTime\nreasoning: $reasoningTime"
+    val result = s"overall: $overallTime\nreasoning: $reasoningTime\n"
     val writer = new FileWriter(resultFile)
     writer.write(result)
+    violations.foreach(e => writer.write(s"${e._1}: ${e._2.mkString(", ")}"))
     writer.close()
   }
 
