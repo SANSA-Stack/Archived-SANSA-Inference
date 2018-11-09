@@ -1,6 +1,7 @@
 package net.sansa_stack.inference.spark.policyreasoning
 
-import java.io.File
+import java.io.{File, FileWriter}
+import java.nio.file.Files
 import java.util.stream.Collectors
 
 import net.sansa_stack.query.spark.sparqlify.SparqlifyUtils3
@@ -12,6 +13,7 @@ import org.aksw.sparqlify.core.interfaces.SparqlSqlStringRewriter
 import org.apache.jena.graph.Triple
 import org.apache.jena.query.QueryFactory
 import org.apache.jena.riot.Lang
+import org.apache.jena.riot.system.RiotLib
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Row, SparkSession}
 import org.semanticweb.owlapi.apibinding.OWLManager
@@ -30,6 +32,11 @@ case class CatalystBasedPolicyReasonerConfig(
 
 
 object CatalystBasedPolicyReasoner {
+  // Some defined time marks used for profiling
+  private var startTime: Long = _
+  private var reasoningStartTime: Long = _
+  private var reasoningDoneTime: Long = _
+
   private val parser =
     new scopt.OptionParser[CatalystBasedPolicyReasonerConfig]("Catalyst-based policy reasoner") {
       head("Catalyst-based policy reasoner", "0.0.1")
@@ -196,6 +203,7 @@ object CatalystBasedPolicyReasoner {
   }
 
   def run(ontologyFilePath: String, consentFilePath: String, logFilePath: String): Unit = {
+    startTime = System.currentTimeMillis() / 1000
     val man = OWLManager.createOWLOntologyManager()
     val ont = man.loadOntologyFromOntologyDocument(new File(ontologyFilePath))
     val reasonerFactory = new StructuralReasonerFactory()
@@ -217,6 +225,7 @@ object CatalystBasedPolicyReasoner {
     spark.conf.set("spark.sql.crossJoin.enabled", "true")
 
     import net.sansa_stack.rdf.spark.io._
+    reasoningStartTime = System.currentTimeMillis() / 1000
     val graphRdd: RDD[Triple] = spark.rdf(Lang.NTRIPLES)(logFilePath)
     val partitions: Map[RdfPartitionDefault, RDD[Row]] =
       RdfPartitionUtilsSpark.partitionGraph(graphRdd)
@@ -248,6 +257,15 @@ object CatalystBasedPolicyReasoner {
         println(s"No violations found for user $user")
       }
     })
+    reasoningDoneTime = System.currentTimeMillis() / 1000
+
+    val overallTime = reasoningDoneTime - startTime
+    val reasoningTime = reasoningDoneTime - reasoningStartTime
+    val resultFile = new File("results.txt")
+    val result = s"overall: $overallTime\nreasoning: $reasoningTime"
+    val writer = new FileWriter(resultFile)
+    writer.write(result)
+    writer.close()
   }
 
   def main(args: Array[String]): Unit = {
